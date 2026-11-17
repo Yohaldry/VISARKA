@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, ArrowRight, Loader2, AlertTriangle, CheckCircle2, ShieldCheck, Zap, Home } from 'lucide-react';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../../components/firebase';
 
@@ -50,6 +50,26 @@ export default function LoginProfesionales() {
     if (q.get('register') === 'true' || q.get('ref')) setIsRegistering(true);
   }, []);
 
+  // Función para recuperar contraseña
+  const handleOlvidePassword = async () => {
+    if (!email) {
+      setErrorMsgLogin('Por favor, ingresa tu correo electrónico primero en el campo superior.');
+      return;
+    }
+
+    try {
+      setLoginLoading(true);
+      setErrorMsgLogin('');
+      await sendPasswordResetEmail(auth, email);
+      setSuccessMsgLogin('¡Correo enviado! Revisa tu bandeja de entrada y spam.');
+    } catch (err) {
+      console.error("Error al enviar correo de recuperación:", err);
+      setErrorMsgLogin('No se pudo enviar el correo. Verifica que la dirección sea correcta.');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
   const handleAuth = async (e) => {
     e.preventDefault();
     if (isRegistering && password !== confirmPassword) return setErrorMsgLogin('Las contraseñas no coinciden.');
@@ -57,6 +77,7 @@ export default function LoginProfesionales() {
     
     setLoginLoading(true);
     setErrorMsgLogin('');
+    setSuccessMsgLogin('');
     
     try {
       if (isRegistering) {
@@ -81,7 +102,7 @@ export default function LoginProfesionales() {
       setLoginLoading(false);
       setTransicionVisarka(false);
     } finally {
-      if (!isRegistering) setLoginLoading(false);
+      if (!isRegistering && !successMsgLogin) setLoginLoading(false);
     }
   };
 
@@ -191,6 +212,19 @@ export default function LoginProfesionales() {
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer">{showPassword ? <EyeOff size={14} /> : <Eye size={14} />}</button>
                 </div>
               </div>
+
+              {/* Botón de Olvidé mi contraseña (solo visible en modo login) */}
+              {!isRegistering && (
+                <div className="flex justify-end">
+                  <button 
+                    type="button" 
+                    onClick={handleOlvidePassword} 
+                    className="text-[10px] font-bold text-indigo-600 hover:underline cursor-pointer"
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </button>
+                </div>
+              )}
 
               {isRegistering && (
                 <div className="space-y-1">
