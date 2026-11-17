@@ -8,8 +8,10 @@ import Hero from './components/Hero.jsx';
 import BusquedaenVivo from './components/BusquedaenVivo';
 import Panelprfesionales from './pages/profesionales/PanelProfesionales.jsx';
 import HomePrincipal from './pages/profesionales/HomePrincipal.jsx';
-import LoginProfesionales from './pages/profesionales/LoginProfesionales.jsx'
+import LoginProfesionales from './pages/profesionales/LoginProfesionales.jsx';
 import CalendarioBarberos from './pages/calendariobarberos/CalendarioBarberos.jsx';
+import BarberBookingView from './pages/profesionales/BarberBookingView.jsx'
+
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -21,6 +23,7 @@ export default function App() {
     if (path === '/panelprofesionales') return 'panelprofesionales';
     if (path === '/login') return 'login';
     if (path === '/calendariobarberos') return 'calendariobarberos';
+    if (path.startsWith('/reservar/')) return 'reservar';
     return path.replace('/', '');
   };
 
@@ -63,6 +66,12 @@ export default function App() {
             element={
              <CalendarioBarberos />
             } 
+          />
+
+          {/* Ruta de Reserva Pública para el Cliente (con el ID dinámico del barbero) */}
+          <Route 
+            path="/reservar/:barberoId" 
+            element={<BarberBookingView />} 
           />
 
           {/* Ruta para Iniciar Sesión / Clientes */}
