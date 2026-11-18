@@ -52,7 +52,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-slate-50 text-slate-900 flex flex-col font-sans selection:bg-[#00E5FF] selection:text-slate-950 m-0 p-0 overflow-x-hidden">
+    <div className="min-h-screen w-full bg-slate-50 text-slate-900 flex flex-col font-sans selection:bg-[#00E5FF] selection:text-slate-950 m-0 p-0 overflow-x-hidden touch-pan-y">
       
       {/* Contenedor principal */}
       <main className="flex-1 w-full m-0 p-0">

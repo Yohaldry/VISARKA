@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiStar, FiMapPin, FiCalendar, FiArrowRight, FiX, FiCheck } from 'react-icons/fi';
 import { db } from '../../components/firebase';
-import { doc, getDoc, collection, addDoc, onSnapshot, query, where, getDocs, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, addDoc, query, where, getDocs, updateDoc } from 'firebase/firestore';
 import emailjs from '@emailjs/browser';
 
 export default function BarberBookingView({ onBookingComplete }) {
@@ -25,13 +25,16 @@ export default function BarberBookingView({ onBookingComplete }) {
 
   useEffect(() => {
     if (!barberoId) return;
+    // Consultas básicas usando únicamente barberoId (no requieren índices compuestos)
     Promise.all([
       getDoc(doc(db, "profesionales", barberoId)),
       getDocs(query(collection(db, "servicios"), where("barberoId", "==", barberoId))),
-      getDocs(query(collection(db, "calendarioprofesionales"), where("barberoId", "==", barberoId)))
-    ]).then(([docSnap, servSnap, dispSnap]) => {
+      getDocs(query(collection(db, "calendarioprofesionales"), where("barberoId", "==", barberoId))),
+      getDocs(query(collection(db, "citas"), where("barberoId", "==", barberoId)))
+    ]).then(([docSnap, servSnap, dispSnap, citasSnap]) => {
       if (!docSnap.exists()) return setError("No se encontró el perfil.");
-      const data = docSnap.data(), listaServicios = [], diasMap = {};
+      const data = docSnap.data(), listaServicios = [], diasMap = {}, bookedMap = {};
+      
       servSnap.forEach(s => {
         const sD = s.data();
         if (!String(sD.duracion || '').toLowerCase().includes('interno')) {
@@ -39,26 +42,32 @@ export default function BarberBookingView({ onBookingComplete }) {
           listaServicios.push({ id: s.id, name: sD.nombre || sD.name || 'Servicio', descripcion: sD.descripcion || '', priceNum: precioNum, priceFormatted: sD.precioText || `$${precioNum.toLocaleString('es-CO')} COP`, categoria: sD.categoria || 'servicio', color: sD.color || '#3b82f6' });
         }
       });
+
+      // Filtrar disponibilidad localmente a partir de hoy para máxima velocidad
       dispSnap.forEach(d => { 
         const dD = d.data(); 
-        if (dD.fecha && !dD.ocupado) {
+        if (dD.fecha && dD.fecha >= todayStr && !dD.ocupado) {
           (diasMap[dD.fecha] = diasMap[dD.fecha] || []).push(dD.hora); 
         }
       });
+
+      citasSnap.forEach(d => { 
+        const c = d.data(); 
+        if (c.fecha && c.fecha >= todayStr && c.estado !== 'cancelada' && c.hora) {
+          (bookedMap[c.fecha] = bookedMap[c.fecha] || new Set()).add(c.hora.toLowerCase()); 
+        }
+      });
+      
       setDispDias(diasMap);
+      setHorasOcupadas(bookedMap[selectedDate] ? Array.from(bookedMap[selectedDate]) : []);
       setBarber({ id: docSnap.id, name: data.nombre || "Profesional", email: data.email || "", location: data.ciudad || "Bogotá D.C.", rating: "4.9", reviewsCount: 231, image: data.foto || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=1000&auto=format&fit=crop", bio: data.descripcion || "Especialista en visagismo y cortes de alta precisión.", services: listaServicios });
       setLoading(false);
-    }).catch(() => { setError("Error al conectar con la base de datos."); setLoading(false); });
-  }, [barberoId]);
-
-  useEffect(() => {
-    if (!barberoId || !selectedDate) return;
-    return onSnapshot(query(collection(db, "citas"), where("barberoId", "==", barberoId)), (snap) => {
-      const booked = new Set();
-      snap.forEach(d => { const c = d.data(); if (c.fecha === selectedDate && c.estado !== 'cancelada' && c.hora) booked.add(c.hora.toLowerCase()); });
-      setHorasOcupadas(Array.from(booked));
+    }).catch((err) => { 
+      console.error(err);
+      setError("Error al conectar con la base de datos."); 
+      setLoading(false); 
     });
-  }, [barberoId, selectedDate]);
+  }, [barberoId]);
 
   const toggleSrv = (s) => setSelectedServices(prev => prev.some(item => item.id === s.id) ? prev.filter(item => item.id !== s.id) : [...prev, s]);
   const totalPrecio = selectedServices.reduce((acc, curr) => acc + curr.priceNum, 0);
@@ -248,17 +257,17 @@ export default function BarberBookingView({ onBookingComplete }) {
               {modalType === 'form' && (
                 <form onSubmit={handleBooking} className="space-y-3 text-xs">
                   <div className="grid grid-cols-2 gap-2">
-                    <input required placeholder="Nombre *" value={form.nombre} onChange={e => setForm({...form, nombre: e.target.value})} className="bg-slate-50 border border-slate-200 p-3 rounded-2xl outline-none focus:border-indigo-500 text-slate-900" />
-                    <input required placeholder="Apellido *" value={form.apellido} onChange={e => setForm({...form, apellido: e.target.value})} className="bg-slate-50 border border-slate-200 p-3 rounded-2xl outline-none focus:border-indigo-500 text-slate-900" />
+                    <input required placeholder="Nombre *" value={form.nombre} onChange={e => setForm({...form, nombre: e.target.value})} className="bg-slate-50 border border-slate-200 p-3 rounded-2xl text-[16px] outline-none focus:border-indigo-500 text-slate-900" />
+                    <input required placeholder="Apellido *" value={form.apellido} onChange={e => setForm({...form, apellido: e.target.value})} className="bg-slate-50 border border-slate-200 p-3 rounded-2xl text-[16px] outline-none focus:border-indigo-500 text-slate-900" />
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    <input required type="email" placeholder="Correo *" value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="bg-slate-50 border border-slate-200 p-3 rounded-2xl outline-none focus:border-indigo-500 text-slate-900" />
-                    <input required type="tel" placeholder="Teléfono *" value={form.telefono} onChange={e => setForm({...form, telefono: e.target.value})} className="bg-slate-50 border border-slate-200 p-3 rounded-2xl outline-none focus:border-indigo-500 text-slate-900" />
+                    <input required type="email" placeholder="Correo *" value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="bg-slate-50 border border-slate-200 p-3 rounded-2xl text-[16px] outline-none focus:border-indigo-500 text-slate-900" />
+                    <input required type="tel" placeholder="Teléfono *" value={form.telefono} onChange={e => setForm({...form, telefono: e.target.value})} className="bg-slate-50 border border-slate-200 p-3 rounded-2xl text-[16px] outline-none focus:border-indigo-500 text-slate-900" />
                   </div>
-                  <input required placeholder="Dirección del domicilio *" value={form.direccion} onChange={e => setForm({...form, direccion: e.target.value})} className="w-full bg-slate-50 border border-slate-200 p-3 rounded-2xl outline-none focus:border-indigo-500 text-slate-900" />
+                  <input required placeholder="Dirección del domicilio *" value={form.direccion} onChange={e => setForm({...form, direccion: e.target.value})} className="w-full bg-slate-50 border border-slate-200 p-3 rounded-2xl text-[16px] outline-none focus:border-indigo-500 text-slate-900" />
                   <div className="grid grid-cols-2 gap-2">
-                    <input placeholder="Torre / Apto" value={form.torreApto} onChange={e => setForm({...form, torreApto: e.target.value})} className="bg-slate-50 border border-slate-200 p-3 rounded-2xl outline-none focus:border-indigo-500 text-slate-900" />
-                    <input placeholder="Referencia" value={form.referencia} onChange={e => setForm({...form, referencia: e.target.value})} className="bg-slate-50 border border-slate-200 p-3 rounded-2xl outline-none focus:border-indigo-500 text-slate-900" />
+                    <input placeholder="Torre / Apto" value={form.torreApto} onChange={e => setForm({...form, torreApto: e.target.value})} className="bg-slate-50 border border-slate-200 p-3 rounded-2xl text-[16px] outline-none focus:border-indigo-500 text-slate-900" />
+                    <input placeholder="Referencia" value={form.referencia} onChange={e => setForm({...form, referencia: e.target.value})} className="bg-slate-50 border border-slate-200 p-3 rounded-2xl text-[16px] outline-none focus:border-indigo-500 text-slate-900" />
                   </div>
                   <label className="flex items-center gap-2.5 pt-1 font-bold text-[11px] text-slate-700 bg-slate-50 p-3 rounded-2xl border border-slate-200">
                     <input type="checkbox" checked={form.parqueaderoMoto} onChange={e => setForm({...form, parqueaderoMoto: e.target.checked})} className="w-4 h-4 accent-indigo-600 rounded" /> 

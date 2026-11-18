@@ -75,12 +75,12 @@ export default function HomePrincipal({ isLoggedIn = false, user = { name: "Usua
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-700 to-[#00838f]">a la puerta de tu casa.</span>
             </h1>
             <p className="text-slate-600 text-sm sm:text-base">Solicita cortes y barba a domicilio en minutos con equipamiento profesional.</p>
-           <button 
-  onClick={() => alert('PRÓXIMAMENTE DISPONIBLE')} 
-  className="bg-slate-950 text-white font-extrabold px-6 py-3.5 rounded-full text-sm flex items-center gap-2 shadow-[0_10px_25px_rgba(15,23,42,0.2)] hover:shadow-[0_15px_30px_rgba(15,23,42,0.3)] transition-all cursor-pointer"
->
-  Solicitar Barbero <ArrowRight className="w-4 h-4 text-[#00E5FF]" />
-</button>
+            <button 
+              onClick={() => navigate('/calendariobarberos')} 
+              className="bg-slate-950 text-white font-extrabold px-6 py-3.5 rounded-full text-sm flex items-center gap-2 shadow-[0_10px_25px_rgba(15,23,42,0.2)] hover:shadow-[0_15px_30px_rgba(15,23,42,0.3)] transition-all cursor-pointer"
+            >
+              Solicitar Barbero <ArrowRight className="w-4 h-4 text-[#00E5FF]" />
+            </button>
             <div className="grid grid-cols-3 gap-2 pt-4 border-t border-slate-200/60 text-[10px] sm:text-xs text-slate-500 font-medium">
               <span className="flex items-center gap-1"><CheckCircle2 className="w-4 h-4 text-[#0284c7]" /> A tu ubicación</span>
               <span className="flex items-center gap-1"><CheckCircle2 className="w-4 h-4 text-[#0284c7]" /> 100% Esterilizado</span>
@@ -107,12 +107,12 @@ export default function HomePrincipal({ isLoggedIn = false, user = { name: "Usua
                   </div>
                   <h3 className="text-xs font-extrabold text-slate-900 truncate">{service.title}</h3>
                   <p className="text-[10px] text-slate-500 mb-2 truncate">{service.sub}</p>
-                 <button 
-  onClick={() => alert('PRÓXIMAMENTE DISPONIBLE')} 
-  className="w-full py-1.5 bg-gradient-to-r from-sky-500 to-[#0284c7] text-white rounded-lg text-[10px] font-black shadow-md hover:shadow-cyan-500/20 cursor-pointer"
->
-  Pedir ahora
-</button>
+                  <button 
+                    onClick={() => navigate('/calendariobarberos')} 
+                    className="w-full py-1.5 bg-gradient-to-r from-sky-500 to-[#0284c7] text-white rounded-lg text-[10px] font-black shadow-md hover:shadow-cyan-500/20 cursor-pointer"
+                  >
+                    Pedir ahora
+                  </button>
                 </div>
               ))}
             </div>
@@ -177,13 +177,13 @@ export default function HomePrincipal({ isLoggedIn = false, user = { name: "Usua
       <div className="fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur-md shadow-[0_-6px_25px_rgba(0,0,0,0.06)] z-40 px-2 py-1.5 sm:hidden grid grid-cols-4 gap-1">
         <button onClick={() => navigate('/')} className={`flex flex-col items-center py-1 rounded-xl ${activeBottomTab === 'home' ? 'text-sky-600 bg-sky-50 shadow-inner' : 'text-slate-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Inicio</span></button>
         <button onClick={() => navigate('/catalog')} className="flex flex-col items-center py-1 text-slate-500"><Compass className="w-5 h-5" /><span className="text-[10px]">Explorar</span></button>
-       <button 
-  onClick={() => alert('PRÓXIMAMENTE DISPONIBLE')} 
-  className="flex flex-col items-center py-1 text-slate-500 cursor-pointer"
->
-  <Clock className="w-5 h-5" />
-  <span className="text-[10px]">Exprés</span>
-</button>
+        <button 
+          onClick={() => navigate('/calendariobarberos')} 
+          className="flex flex-col items-center py-1 text-slate-500 cursor-pointer"
+        >
+          <Clock className="w-5 h-5" />
+          <span className="text-[10px]">Exprés</span>
+        </button>
         <button onClick={() => navigate('/panelprofesionales')} className="flex flex-col items-center py-1 text-slate-500"><User className="w-5 h-5" /><span className="text-[10px]">Barberos</span></button>
       </div>
 
