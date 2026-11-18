@@ -1710,7 +1710,7 @@ const abrirModalCita = (cita) => {
             )}
 
             {isModalOpen && (
-              <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-xs p-0 sm:p-4">
+             <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-xs p-0 sm:p-4">
                 <div className="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                   <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-slate-50/50">
                     <h3 className="text-xs font-black uppercase text-slate-900 flex items-center gap-1.5">
@@ -1744,12 +1744,12 @@ const abrirModalCita = (cita) => {
                     
                     <div className="space-y-1">
                       <label className="font-bold text-slate-500 uppercase text-[9px]">Nombre Completo</label>
-                      <input type="text" value={nombre} onChange={e => setNombre(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-[12px] text-slate-900 outline-none focus:border-indigo-600" required />
+                      <input type="text" value={nombre} onChange={e => setNombre(e.target.value)} style={{ fontSize: '16px', transform: 'scale(0.75)', transformOrigin: 'left', width: '133.33%' }} className="bg-slate-50 border border-slate-200 rounded-xl py-1.5 px-3 text-slate-900 outline-none focus:border-indigo-600" required />
                     </div>
 
                     <div className="space-y-1">
                       <label className="font-bold text-slate-500 uppercase text-[9px]">Descripción / Biografía</label>
-                      <textarea rows="3" value={descripcion} onChange={e => setDescripcion(e.target.value)} placeholder="Cuéntale a tus clientes sobre tu experiencia y estilo..." className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-[12px] text-slate-900 outline-none focus:border-indigo-600 resize-none" />
+                      <textarea rows="3" value={descripcion} onChange={e => setDescripcion(e.target.value)} placeholder="Cuéntale a tus clientes sobre tu experiencia y estilo..." style={{ fontSize: '16px', transform: 'scale(0.75)', transformOrigin: 'left', width: '133.33%' }} className="bg-slate-50 border border-slate-200 rounded-xl py-1.5 px-3 text-slate-900 outline-none focus:border-indigo-600 resize-none" />
                     </div>
 
                     <div className="space-y-1">
@@ -1766,7 +1766,7 @@ const abrirModalCita = (cita) => {
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-1">
                         <label className="font-bold text-slate-500 uppercase text-[9px]">Teléfono / WhatsApp</label>
-                        <input type="tel" value={telefono} onChange={e => setTelefono(e.target.value)} placeholder="+57 300 0000000" className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-[12px] text-slate-900 outline-none focus:border-indigo-600" />
+                        <input type="tel" value={telefono} onChange={e => setTelefono(e.target.value)} placeholder="+57 300 0000000" style={{ fontSize: '16px', transform: 'scale(0.75)', transformOrigin: 'left', width: '133.33%' }} className="bg-slate-50 border border-slate-200 rounded-xl py-1.5 px-3 text-slate-900 outline-none focus:border-indigo-600" />
                       </div>
                       <div className="space-y-1">
                         <label className="font-bold text-slate-500 uppercase text-[9px]">Correo Electrónico (No editable)</label>
@@ -1774,7 +1774,8 @@ const abrirModalCita = (cita) => {
                           type="email" 
                           value={correoPerfil} 
                           disabled 
-                          className="w-full bg-slate-100 border border-slate-200 rounded-xl py-2 px-3 text-[12px] text-slate-500 cursor-not-allowed shadow-none outline-none select-none" 
+                          style={{ fontSize: '16px', transform: 'scale(0.75)', transformOrigin: 'left', width: '133.33%' }} 
+                          className="bg-slate-100 border border-slate-200 rounded-xl py-1.5 px-3 text-slate-500 cursor-not-allowed shadow-none outline-none select-none" 
                         />
                       </div>
                     </div>
@@ -1782,22 +1783,22 @@ const abrirModalCita = (cita) => {
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-1">
                         <label className="font-bold text-slate-500 uppercase text-[9px]">Ciudad</label>
-                        <input type="text" value={ciudad} onChange={e => setCiudad(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-[12px] text-slate-900 outline-none focus:border-indigo-600" />
+                        <input type="text" value={ciudad} onChange={e => setCiudad(e.target.value)} style={{ fontSize: '16px', transform: 'scale(0.75)', transformOrigin: 'left', width: '133.33%' }} className="bg-slate-50 border border-slate-200 rounded-xl py-1.5 px-3 text-slate-900 outline-none focus:border-indigo-600" />
                       </div>
                       <div className="space-y-1">
                         <label className="font-bold text-slate-500 uppercase text-[9px]">Experiencia</label>
-                        <input type="text" value={experiencia} onChange={e => setExperiencia(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-[12px] text-slate-900 outline-none focus:border-indigo-600" />
+                        <input type="text" value={experiencia} onChange={e => setExperiencia(e.target.value)} style={{ fontSize: '16px', transform: 'scale(0.75)', transformOrigin: 'left', width: '133.33%' }} className="bg-slate-50 border border-slate-200 rounded-xl py-1.5 px-3 text-slate-900 outline-none focus:border-indigo-600" />
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-1">
                         <label className="font-bold text-slate-500 uppercase text-[9px]">Especialidad</label>
-                        <input type="text" value={especialidad} onChange={e => setEspecialidad(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-[12px] text-slate-900 outline-none focus:border-indigo-600" />
+                        <input type="text" value={especialidad} onChange={e => setEspecialidad(e.target.value)} style={{ fontSize: '16px', transform: 'scale(0.75)', transformOrigin: 'left', width: '133.33%' }} className="bg-slate-50 border border-slate-200 rounded-xl py-1.5 px-3 text-slate-900 outline-none focus:border-indigo-600" />
                       </div>
                       <div className="space-y-1">
                         <label className="font-bold text-slate-500 uppercase text-[9px]">Porcentaje (%)</label>
-                        <input type="number" value={porcentaje} onChange={e => setPorcentaje(e.target.value)} placeholder="0" className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-[12px] text-slate-900 outline-none focus:border-indigo-600" />
+                        <input type="number" value={porcentaje} onChange={e => setPorcentaje(e.target.value)} placeholder="0" style={{ fontSize: '16px', transform: 'scale(0.75)', transformOrigin: 'left', width: '133.33%' }} className="bg-slate-50 border border-slate-200 rounded-xl py-1.5 px-3 text-slate-900 outline-none focus:border-indigo-600" />
                       </div>
                     </div>
 

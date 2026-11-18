@@ -1666,7 +1666,7 @@ const Wallet = () => {
             
 
             {modalMetaAbierto && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4">
                 <div className="w-full max-w-sm bg-white rounded-3xl p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150 text-slate-800 font-sans border border-slate-100">
                   
                   <div className="flex justify-between items-center border-b border-slate-100 pb-3">
@@ -1692,7 +1692,7 @@ const Wallet = () => {
                         value={inputMetaValor}
                         onChange={(e) => setInputMetaValor(e.target.value)}
                         placeholder="Ej: 200000"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-sm text-slate-900 font-bold outline-none focus:border-blue-600 shadow-inner"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-[16px] text-slate-900 font-bold outline-none focus:border-blue-600 shadow-inner"
                       />
                     </div>
 
@@ -2043,7 +2043,7 @@ const Wallet = () => {
 
       {/* Modal de Registro */}
       {modalAgregarOpen && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex justify-center items-center p-3 z-50">
+       <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex justify-center items-center p-3 z-50">
           <div className="bg-white border border-sky-200 rounded-3xl p-5 max-w-sm w-full shadow-2xl">
             <div className="flex justify-between items-center mb-3 border-b border-slate-100 pb-2">
               <h3 className="text-sm font-black text-slate-900 uppercase">Registrar Nuevo Servicio</h3>
@@ -2059,7 +2059,7 @@ const Wallet = () => {
                   value={nuevoServicio.cliente}
                   onChange={(e) => setNuevoServicio({ ...nuevoServicio, cliente: e.target.value })}
                   placeholder="Ej. Carlos Pérez"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2 text-slate-800 focus:outline-none focus:border-blue-500 shadow-inner"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2 text-[16px] text-slate-800 focus:outline-none focus:border-blue-500 shadow-inner"
                 />
               </div>
 
@@ -2195,7 +2195,7 @@ const Wallet = () => {
                     value={nuevoServicio.total}
                     onChange={(e) => setNuevoServicio({ ...nuevoServicio, total: e.target.value })}
                     placeholder="Ej. 45000"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2 text-slate-900 focus:outline-none focus:border-blue-500 font-black text-blue-600 shadow-inner"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2 text-[16px] text-slate-900 focus:outline-none focus:border-blue-500 font-black text-blue-600 shadow-inner"
                   />
                 </div>
                 <div>
@@ -2205,7 +2205,7 @@ const Wallet = () => {
                     readOnly
                     value={`${nuevoServicio.porcentajeBarberForm || 0}%`}
                     onClick={() => setMostrarAlertaPerfil(true)}
-                    className="w-full bg-slate-100 border border-slate-200 rounded-2xl px-3 py-2 text-slate-600 font-black cursor-pointer select-none shadow-inner"
+                    className="w-full bg-slate-100 border border-slate-200 rounded-2xl px-3 py-2 text-[16px] text-slate-600 font-black cursor-pointer select-none shadow-inner"
                   />
                 </div>
               </div>
@@ -2216,7 +2216,7 @@ const Wallet = () => {
                   type="text"
                   disabled
                   value={`$${gananciaCalculadaEnVivo.toLocaleString(undefined, { maximumFractionDigits: 0 })} COP`}
-                  className="w-full bg-blue-50 border border-blue-200 rounded-2xl px-3 py-2 text-blue-900 font-black shadow-inner cursor-not-allowed"
+                  className="w-full bg-blue-50 border border-blue-200 rounded-2xl px-3 py-2 text-[16px] text-blue-900 font-black shadow-inner cursor-not-allowed"
                 />
               </div>
 
@@ -2227,7 +2227,7 @@ const Wallet = () => {
                     type="date"
                     value={nuevoServicio.fecha || hoyStr}
                     onChange={(e) => setNuevoServicio({ ...nuevoServicio, fecha: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2 text-slate-800 focus:outline-none focus:border-blue-500 shadow-inner"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2 text-[16px] text-slate-800 focus:outline-none focus:border-blue-500 shadow-inner"
                   />
                 </div>
                 <div>
@@ -2236,7 +2236,7 @@ const Wallet = () => {
                     type="time"
                     value={nuevoServicio.hora}
                     onChange={(e) => setNuevoServicio({ ...nuevoServicio, hora: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2 text-slate-800 focus:outline-none focus:border-blue-500 shadow-inner"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2 text-[16px] text-slate-800 focus:outline-none focus:border-blue-500 shadow-inner"
                   />
                 </div>
               </div>
@@ -2274,7 +2274,7 @@ const Wallet = () => {
                   required
                   value={formEdicion.cliente}
                   onChange={(e) => setFormEdicion({ ...formEdicion, cliente: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2 text-slate-800 focus:outline-none focus:border-blue-500 shadow-inner"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2 text-[16px] text-slate-800 focus:outline-none focus:border-blue-500 shadow-inner"
                 />
               </div>
 
@@ -2284,7 +2284,7 @@ const Wallet = () => {
                   type="text"
                   value={formEdicion.servicio}
                   onChange={(e) => setFormEdicion({ ...formEdicion, servicio: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2 text-slate-800 focus:outline-none focus:border-blue-500 shadow-inner"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2 text-[16px] text-slate-800 focus:outline-none focus:border-blue-500 shadow-inner"
                 />
               </div>
 
@@ -2296,7 +2296,7 @@ const Wallet = () => {
                     required
                     value={formEdicion.total}
                     onChange={(e) => setFormEdicion({ ...formEdicion, total: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2 text-slate-800 focus:outline-none focus:border-blue-500 shadow-inner"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2 text-[16px] text-slate-800 focus:outline-none focus:border-blue-500 shadow-inner"
                   />
                 </div>
                 <div>
@@ -2308,7 +2308,7 @@ const Wallet = () => {
                     required
                     value={formEdicion.porcentajeBarberForm}
                     onChange={(e) => setFormEdicion({ ...formEdicion, porcentajeBarberForm: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2 text-slate-900 font-bold focus:outline-none focus:border-blue-500 shadow-inner"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2 text-[16px] text-slate-900 font-bold focus:outline-none focus:border-blue-500 shadow-inner"
                   />
                 </div>
               </div>
@@ -2319,7 +2319,7 @@ const Wallet = () => {
                   type="text"
                   disabled
                   value={`$${gananciaEditCalculadaEnVivo.toLocaleString(undefined, { maximumFractionDigits: 0 })} COP`}
-                  className="w-full bg-blue-50 border border-blue-200 rounded-2xl px-3 py-2 text-blue-900 font-black shadow-inner cursor-not-allowed"
+                  className="w-full bg-blue-50 border border-blue-200 rounded-2xl px-3 py-2 text-[16px] text-blue-900 font-black shadow-inner cursor-not-allowed"
                 />
               </div>
 
@@ -2330,7 +2330,7 @@ const Wallet = () => {
                     type="date"
                     value={formEdicion.fecha}
                     onChange={(e) => setFormEdicion({ ...formEdicion, fecha: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2 text-slate-800 focus:outline-none focus:border-blue-500 shadow-inner"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2 text-[16px] text-slate-800 focus:outline-none focus:border-blue-500 shadow-inner"
                   />
                 </div>
                 <div>
@@ -2339,7 +2339,7 @@ const Wallet = () => {
                     type="time"
                     value={formEdicion.hora}
                     onChange={(e) => setFormEdicion({ ...formEdicion, hora: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2 text-slate-800 focus:outline-none focus:border-blue-500 shadow-inner"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2 text-[16px] text-slate-800 focus:outline-none focus:border-blue-500 shadow-inner"
                   />
                 </div>
               </div>
@@ -2460,10 +2460,10 @@ const Wallet = () => {
 
       {/* Modal Egresos */}
       {modalEgresosAbierto && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+       <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 space-y-4 border border-slate-100 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-black text-rose-600 uppercase flex items-center gap-2">
+              <h3 className="text-xs font-black text-rose-600 uppercase flex items-center gap-2">
                 💸 Gestión de Egresos
               </h3>
               <button 
@@ -2473,14 +2473,14 @@ const Wallet = () => {
                   setNuevoEgresoNombre('');
                   setNuevoEgresoMonto('');
                 }} 
-                className="text-slate-400 hover:text-slate-600 font-bold text-sm cursor-pointer"
+                className="text-slate-400 hover:text-slate-600 font-bold text-xs cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            <div className="bg-rose-50/70 border border-rose-200 p-4 rounded-2xl space-y-3">
-              <h4 className="text-[11px] font-black text-rose-900 uppercase">
+            <div className="bg-rose-50/70 border border-rose-200 p-3.5 rounded-2xl space-y-2.5">
+              <h4 className="text-[10px] font-black text-rose-900 uppercase">
                 {editandoEgresoId ? '✏️ Editar Egreso' : 'Registrar Nuevo Egreso'}
               </h4>
               <div className="grid grid-cols-2 gap-2.5">
@@ -2489,14 +2489,14 @@ const Wallet = () => {
                   placeholder="Concepto (Ej: Insumos)" 
                   value={nuevoEgresoNombre || ''} 
                   onChange={e => setNuevoEgresoNombre(e.target.value)}
-                  className="bg-white border border-rose-200 rounded-xl p-2.5 text-xs text-slate-900 outline-none font-medium shadow-inner"
+                  className="bg-white border border-rose-200 rounded-xl p-2.5 text-[16px] text-slate-900 outline-none font-medium shadow-inner"
                 />
                 <input 
                   type="number" 
                   placeholder="Monto COP" 
                   value={nuevoEgresoMonto || ''} 
                   onChange={e => setNuevoEgresoMonto(e.target.value)}
-                  className="bg-white border border-rose-200 rounded-xl p-2.5 text-xs text-slate-900 outline-none font-bold text-rose-600 shadow-inner"
+                  className="bg-white border border-rose-200 rounded-xl p-2.5 text-[16px] text-slate-900 outline-none font-bold text-rose-600 shadow-inner"
                 />
               </div>
               <div className="flex gap-2 pt-1">
@@ -2508,7 +2508,7 @@ const Wallet = () => {
                       setNuevoEgresoNombre('');
                       setNuevoEgresoMonto('');
                     }}
-                    className="w-1/3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2.5 rounded-xl text-xs uppercase transition cursor-pointer"
+                    className="w-1/3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2.5 rounded-xl text-[10px] uppercase transition cursor-pointer"
                   >
                     Cancelar
                   </button>
@@ -2549,18 +2549,18 @@ const Wallet = () => {
                       alert('Error al guardar el egreso.');
                     }
                   }}
-                  className="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-2.5 rounded-xl text-xs uppercase shadow-md shadow-rose-500/20 transition cursor-pointer"
+                  className="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-2.5 rounded-xl text-[10px] uppercase shadow-md shadow-rose-500/20 transition cursor-pointer"
                 >
-                  {editandoEgresoId ? 'Actualizar Egreso' : 'Guardar Egreso'}
+                  {editandoEgresoId ? 'Actualizar' : 'Guardar Egreso'}
                 </button>
               </div>
             </div>
 
             <div className="space-y-2">
-              <h4 className="text-[11px] font-black text-slate-700 uppercase">Historial de Egresos</h4>
+              <h4 className="text-[10px] font-black text-slate-700 uppercase">Historial de Egresos</h4>
               <div className="max-h-48 overflow-y-auto border border-slate-100 rounded-2xl shadow-inner">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 text-slate-500 uppercase sticky top-0">
+                <table className="w-full text-left text-[11px]">
+                  <thead className="bg-slate-50 text-slate-500 uppercase sticky top-0 text-[10px]">
                     <tr>
                       <th className="p-2.5">Concepto</th>
                       <th className="p-2.5">Monto</th>
@@ -2574,7 +2574,7 @@ const Wallet = () => {
                         <tr key={item.id} className="hover:bg-slate-50">
                           <td className="p-2.5 font-bold text-slate-900">{item.nombre}</td>
                           <td className="p-2.5 text-rose-600 font-black">-${Number(item.monto || 0).toLocaleString()}</td>
-                          <td className="p-2.5 text-slate-400 text-[10px]">{item.fechaHora ? new Date(item.fechaHora).toLocaleString() : 'N/A'}</td>
+                          <td className="p-2.5 text-slate-400 text-[9px]">{item.fechaHora ? new Date(item.fechaHora).toLocaleString() : 'N/A'}</td>
                           <td className="p-2.5 flex items-center justify-center gap-1.5">
                             <button 
                               type="button"
@@ -2583,7 +2583,7 @@ const Wallet = () => {
                                 setNuevoEgresoNombre(item.nombre);
                                 setNuevoEgresoMonto(item.monto);
                               }}
-                              className="bg-amber-100 hover:bg-amber-200 text-amber-900 px-2.5 py-1 rounded-xl font-bold cursor-pointer text-xs"
+                              className="bg-amber-100 hover:bg-amber-200 text-amber-900 px-2.5 py-1 rounded-xl font-bold cursor-pointer text-[10px]"
                               title="Editar"
                             >
                               ✏️
@@ -2601,7 +2601,7 @@ const Wallet = () => {
                                   }
                                 }
                               }}
-                              className="bg-rose-100 hover:bg-rose-200 text-rose-900 px-2.5 py-1 rounded-xl font-bold cursor-pointer text-xs"
+                              className="bg-rose-100 hover:bg-rose-200 text-rose-900 px-2.5 py-1 rounded-xl font-bold cursor-pointer text-[10px]"
                               title="Eliminar"
                             >
                               🗑️
@@ -2611,7 +2611,7 @@ const Wallet = () => {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="4" className="p-6 text-center text-slate-400 italic">No hay egresos registrados.</td>
+                        <td colSpan="4" className="p-6 text-center text-slate-400 italic text-[11px]">No hay egresos registrados.</td>
                       </tr>
                     )}
                   </tbody>
@@ -2624,7 +2624,7 @@ const Wallet = () => {
 
       {/* Modal Propinas */}
       {modalPropinasAbierto && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+       <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 space-y-4 border border-slate-100 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <h3 className="text-sm font-black text-emerald-600 uppercase flex items-center gap-2">
@@ -2653,14 +2653,14 @@ const Wallet = () => {
                   placeholder="Cliente / Nota (Opcional)" 
                   value={nuevaPropinaNota || ''} 
                   onChange={e => setNuevaPropinaNota(e.target.value)}
-                  className="bg-white border border-emerald-200 rounded-xl p-2.5 text-xs text-slate-900 outline-none font-medium shadow-inner"
+                  className="bg-white border border-emerald-200 rounded-xl p-2.5 text-[16px] text-slate-900 outline-none font-medium shadow-inner"
                 />
                 <input 
                   type="number" 
                   placeholder="Monto COP" 
                   value={nuevaPropinaMonto || ''} 
                   onChange={e => setNuevaPropinaMonto(e.target.value)}
-                  className="bg-white border border-emerald-200 rounded-xl p-2.5 text-xs text-slate-900 outline-none font-bold text-emerald-600 shadow-inner"
+                  className="bg-white border border-emerald-200 rounded-xl p-2.5 text-[16px] text-slate-900 outline-none font-bold text-emerald-600 shadow-inner"
                 />
               </div>
               <div className="flex gap-2 pt-1">
