@@ -9,6 +9,7 @@ import emailjs from '@emailjs/browser';
 export default function BarberBookingView({ onBookingComplete }) {
   const { barberoId } = useParams();
   const [barber, setBarber] = useState(null);
+  const [imgLoaded, setImgLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const todayStr = new Date().toISOString().split('T')[0];
@@ -25,6 +26,8 @@ export default function BarberBookingView({ onBookingComplete }) {
 
   useEffect(() => {
     if (!barberoId) return;
+    setLoading(true);
+    setImgLoaded(false);
     // Consultas básicas usando únicamente barberoId (no requieren índices compuestos)
     Promise.all([
       getDoc(doc(db, "profesionales", barberoId)),
@@ -32,7 +35,11 @@ export default function BarberBookingView({ onBookingComplete }) {
       getDocs(query(collection(db, "calendarioprofesionales"), where("barberoId", "==", barberoId))),
       getDocs(query(collection(db, "citas"), where("barberoId", "==", barberoId)))
     ]).then(([docSnap, servSnap, dispSnap, citasSnap]) => {
-      if (!docSnap.exists()) return setError("No se encontró el perfil.");
+      if (!docSnap.exists()) {
+        setError("No se encontró el perfil.");
+        setLoading(false);
+        return;
+      }
       const data = docSnap.data(), listaServicios = [], diasMap = {}, bookedMap = {};
       
       servSnap.forEach(s => {
@@ -60,12 +67,12 @@ export default function BarberBookingView({ onBookingComplete }) {
       
       setDispDias(diasMap);
       setHorasOcupadas(bookedMap[selectedDate] ? Array.from(bookedMap[selectedDate]) : []);
-      setBarber({ id: docSnap.id, name: data.nombre || "Profesional", email: data.email || "", location: data.ciudad || "Bogotá D.C.", rating: "4.9", reviewsCount: 231, image: data.foto || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=1000&auto=format&fit=crop", bio: data.descripcion || "Especialista en visagismo y cortes de alta precisión.", services: listaServicios });
+      setBarber({ id: docSnap.id, name: data.nombre || "Profesional", email: data.email || "", location: data.ciudad || "Bogotá D.C.", rating: "4.9", reviewsCount: 231, image: data.foto || "", bio: data.descripcion || "Especialista en visagismo y cortes de alta precisión.", services: listaServicios });
       setLoading(false);
     }).catch((err) => { 
       console.error(err);
       setError("Error al conectar con la base de datos."); 
-      setLoading(false); 
+      setLoading(false);
     });
   }, [barberoId]);
 
@@ -79,7 +86,7 @@ export default function BarberBookingView({ onBookingComplete }) {
     try {
       const clienteNombreCompleto = `${form.nombre} ${form.apellido}`;
       const bookingData = { 
-        barberoId, barberoName: barber.name, fecha: selectedDate, hora: selectedTime, 
+        barberoId, barberoName: barber?.name || 'Profesional', fecha: selectedDate, hora: selectedTime, 
         servicios: selectedServices.map(s => ({ nombre: s.name, precio: s.priceFormatted, precioNum: s.priceNum })), 
         precioTotal: formatCOP(totalPrecio), clienteNombre: clienteNombreCompleto, ...form, estado: 'confirmada', createdAt: new Date().toISOString() 
       };
@@ -89,8 +96,8 @@ export default function BarberBookingView({ onBookingComplete }) {
       } catch (err) { console.warn(err); }
       const srvTxt = selectedServices.map(s => s.name).join(', ');
       await Promise.all([
-        emailjs.send("service_z91pc3e", 'template_qqht1ab', { to_name: clienteNombreCompleto, to_email: form.email, barbero_nombre: barber.name, fecha_cita: selectedDate, hora_cita: selectedTime, servicios: srvTxt, total: bookingData.precioTotal }, "JkBxr3kN07cKntGLN"),
-        emailjs.send("service_z91pc3e", 'template_reteht9', { to_name: barber.name, to_email: barber.email || "yohaldryquintero1995@gmail.com", cliente_nombre: clienteNombreCompleto, cliente_telefono: form.telefono, fecha_cita: selectedDate, hora_cita: selectedTime, direccion: form.direccion, servicios: srvTxt, total: bookingData.precioTotal }, "JkBxr3kN07cKntGLN")
+        emailjs.send("service_z91pc3e", 'template_qqht1ab', { to_name: clienteNombreCompleto, to_email: form.email, barbero_nombre: barber?.name || 'Profesional', fecha_cita: selectedDate, hora_cita: selectedTime, servicios: srvTxt, total: bookingData.precioTotal }, "JkBxr3kN07cKntGLN"),
+        emailjs.send("service_z91pc3e", 'template_reteht9', { to_name: barber?.name || 'Profesional', to_email: barber?.email || "yohaldryquintero1995@gmail.com", cliente_nombre: clienteNombreCompleto, cliente_telefono: form.telefono, fecha_cita: selectedDate, hora_cita: selectedTime, direccion: form.direccion, servicios: srvTxt, total: bookingData.precioTotal }, "JkBxr3kN07cKntGLN")
       ]);
       setDetalleCita(bookingData); setModalType('success');
       if (onBookingComplete) onBookingComplete(bookingData);
@@ -104,10 +111,10 @@ export default function BarberBookingView({ onBookingComplete }) {
     return res;
   };
 
-  if (loading) return <div className="w-full h-screen max-w-md mx-auto flex items-center justify-center text-xs text-slate-600 bg-slate-50 font-['Arial']">Cargando experiencia Visarka...</div>;
-  if (error || !barber) return <div className="w-full h-screen max-w-md mx-auto flex items-center justify-center p-6 text-xs text-rose-500 bg-slate-50 font-['Arial']">{error}</div>;
+  if (error) return <div className="w-full h-screen max-w-md mx-auto flex items-center justify-center p-6 text-xs text-rose-500 bg-slate-50 font-['Arial']">{error}</div>;
 
-  const srvs = barber.services.filter(s => s.categoria !== 'paquete'), pkgs = barber.services.filter(s => s.categoria === 'paquete');
+  const barberData = barber || { name: "", location: "", rating: "4.9", image: "", bio: "", services: [] };
+  const srvs = barberData.services.filter(s => s.categoria !== 'paquete'), pkgs = barberData.services.filter(s => s.categoria === 'paquete');
 
   return (
     <div className="w-full h-screen max-w-md mx-auto bg-gradient-to-b from-slate-50 via-sky-50/50 to-indigo-50/60 text-slate-900 flex flex-col justify-between overflow-y-auto shadow-2xl rounded-3xl border border-indigo-100 font-['Arial']">
@@ -120,7 +127,7 @@ export default function BarberBookingView({ onBookingComplete }) {
             <span className="text-[11px] font-black tracking-widest text-white">VISARKA</span>
           </div>
           <div className="flex items-center space-x-1.5 bg-white/20 backdrop-blur-md px-3.5 py-1.5 rounded-full text-amber-200 text-xs font-black border border-white/30 shadow-inner">
-            <FiStar className="fill-amber-300 text-amber-300" /><span>{barber.rating}</span>
+            <FiStar className="fill-amber-300 text-amber-300" /><span>{barberData.rating}</span>
           </div>
         </div>
       </div>
@@ -128,18 +135,36 @@ export default function BarberBookingView({ onBookingComplete }) {
       {/* Imagen Grande Sin Bordes sobre fondo claro */}
       <div className="px-5 relative -mt-10 pb-3 bg-transparent text-center">
         <div className="flex justify-center mb-2">
-          <div className="w-28 h-28 rounded-full overflow-hidden shadow-2xl ring-4 ring-white">
-            <img src={barber.image} className="w-full h-full object-cover" alt={barber.name} />
+          <div className={`w-28 h-28 rounded-full overflow-hidden shadow-2xl ring-4 ring-white bg-indigo-100/80 ${(!barberData.image || !imgLoaded) ? 'animate-pulse' : ''}`}>
+            {barberData.image ? (
+              <img
+                src={barberData.image}
+                onLoad={() => setImgLoaded(true)}
+                onError={() => setImgLoaded(true)}
+                className={`w-full h-full object-cover transition-opacity duration-300 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
+                alt={barberData.name}
+              />
+            ) : null}
           </div>
         </div>
         <div className="bg-white/90 backdrop-blur-xl p-4 rounded-3xl shadow-xl shadow-slate-200/50 border border-indigo-100 space-y-2">
           <span className="text-[9px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-3 py-0.5 rounded-full border border-indigo-100">Barbero Profesional VIP</span>
-          <h1 className="text-base font-black uppercase text-slate-900 mt-1">{barber.name}</h1>
-          <p className="text-slate-500 text-[10px] flex items-center justify-center font-bold">
-            <FiMapPin className="text-indigo-500 mr-1" />{barber.location}
-          </p>
-          <p className={`text-slate-600 text-[10px] bg-slate-50/80 p-2.5 rounded-2xl border border-slate-100 leading-relaxed ${showBio ? '' : 'line-clamp-2'}`}>{barber.bio}</p>
-          {barber.bio?.length > 80 && <button onClick={() => setShowBio(!showBio)} className="text-[10px] font-bold text-indigo-600 hover:underline">{showBio ? 'Ver menos' : 'Ver más...'}</button>}
+          {loading && !barber ? (
+            <div className="space-y-2 pt-1 animate-pulse">
+              <div className="h-4 w-36 mx-auto bg-indigo-100 rounded-full" />
+              <div className="h-3 w-24 mx-auto bg-slate-100 rounded-full" />
+              <div className="h-10 w-full bg-slate-100 rounded-2xl" />
+            </div>
+          ) : (
+            <>
+              <h1 className="text-base font-black uppercase text-slate-900 mt-1">{barberData.name}</h1>
+              <p className="text-slate-500 text-[10px] flex items-center justify-center font-bold">
+                <FiMapPin className="text-indigo-500 mr-1" />{barberData.location}
+              </p>
+              <p className={`text-slate-600 text-[10px] bg-slate-50/80 p-2.5 rounded-2xl border border-slate-100 leading-relaxed ${showBio ? '' : 'line-clamp-2'}`}>{barberData.bio}</p>
+              {barberData.bio?.length > 80 && <button onClick={() => setShowBio(!showBio)} className="text-[10px] font-bold text-indigo-600 hover:underline">{showBio ? 'Ver menos' : 'Ver más...'}</button>}
+            </>
+          )}
         </div>
       </div>
 
@@ -159,7 +184,7 @@ export default function BarberBookingView({ onBookingComplete }) {
               if (i.vacio) return <div key={idx} />;
               const has = dispDias[i.fechaStr]?.length > 0, sel = selectedDate === i.fechaStr;
               return (
-                <button key={i.fechaStr} type="button" onClick={() => has ? (setSelectedDate(i.fechaStr), setSelectedTime(null), setModalType('calendario_horas')) : alert("Este día no cuenta con disponibilidad.")} className={`h-10 rounded-2xl flex flex-col items-center justify-center border text-xs transition-all ${sel ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-blue-500 shadow-md scale-105' : has ? 'bg-emerald-50 text-emerald-700 border-emerald-200 font-bold hover:bg-emerald-100 shadow-2xs' : 'bg-slate-100 text-slate-300 border-slate-200 opacity-40 cursor-not-allowed'}`}>
+                <button key={i.fechaStr} type="button" onClick={() => has ? (setSelectedDate(i.fechaStr), setSelectedTime(null), setModalType('calendario_horas')) : alert("Este día no cuenta con disponibilidad.")} className={`h-10 rounded-2xl flex flex-col items-center justify-center border text-xs transition-all ${loading && !barber ? 'bg-indigo-50/70 border-indigo-100 animate-pulse' : sel ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-blue-500 shadow-md scale-105' : has ? 'bg-emerald-50 text-emerald-700 border-emerald-200 font-bold hover:bg-emerald-100 shadow-2xs' : 'bg-slate-100 text-slate-300 border-slate-200 opacity-40 cursor-not-allowed'}`}>
                   <span className="text-[11px]">{i.diaMes}</span>
                   <span className={`w-1.5 h-1.5 rounded-full mt-0.5 ${sel ? 'bg-white' : has ? 'bg-emerald-500' : 'bg-transparent'}`} />
                 </button>
@@ -190,7 +215,7 @@ export default function BarberBookingView({ onBookingComplete }) {
               {s.name} <span className="text-indigo-600 ml-1">({s.priceFormatted})</span> 
               <button onClick={(e) => { e.stopPropagation(); toggleSrv(s); }} className="ml-1.5 text-rose-500 font-bold hover:text-rose-700">×</button>
             </span>
-          )) : <span className="text-[10px] text-slate-400 italic">Selecciona hora primero, luego añade servicios.</span>}
+          )) : <span className={`text-[10px] text-slate-400 italic ${loading && !barber ? 'animate-pulse' : ''}`}>{loading && !barber ? 'Cargando datos...' : 'Selecciona hora primero, luego añade servicios.'}</span>}
         </div>
 
         <motion.button whileTap={{ scale: 0.98 }} disabled={!selectedTime || !selectedServices.length} onClick={() => setModalType('form')} className="w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 disabled:opacity-40 text-white font-black py-3 px-4 rounded-2xl flex items-center justify-between shadow-lg shadow-indigo-500/25 transition-all mt-2">
