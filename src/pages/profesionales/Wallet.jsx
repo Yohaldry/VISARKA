@@ -1,10 +1,138 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Wallet as WalletIcon, Calendar, Eye, Edit3, Trash2, Clock, User, Scissors, CheckCircle2, Percent, Layers, ChevronRight, AlertTriangle, X, Home, Edit2, EyeOff } from 'lucide-react';
 import { db, auth } from '../../components/firebase'; 
 import { collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where } from 'firebase/firestore';
 
+const MesCarruselItem = ({ mesData, setQuincenaActivaModal, anioActual, mesActual, diaActual }) => {
+  const [verMontoQ1, setVerMontoQ1] = useState(false);
+  const [verMontoQ2, setVerMontoQ2] = useState(false);
+
+  const getColorClases = (q) => {
+    if (q.enCurso) return 'bg-amber-400/20 border-amber-300 ring-1 ring-amber-400/30';
+    if (q.sinMovimiento) return 'bg-rose-500/15 border-rose-300 hover:border-rose-400';
+    return 'bg-emerald-500/15 border-emerald-300 hover:border-emerald-400';
+  };
+
+  const getTextoColor = (q) => {
+    if (q.enCurso) return 'text-amber-900';
+    if (q.sinMovimiento) return 'text-rose-900';
+    return 'text-emerald-900';
+  };
+
+  const getMontoColor = (q) => {
+    if (q.enCurso) return 'text-amber-950';
+    if (q.sinMovimiento) return 'text-rose-950';
+    return 'text-emerald-950';
+  };
+
+  return (
+    <div 
+      key={mesData.mesId}
+      id={mesData.esMesActual ? 'mes-actual-carrusel' : undefined}
+      dir="ltr"
+      className="min-w-[calc(100%-12px)] sm:min-w-[calc(50%-6px)] flex-1 grid grid-cols-2 gap-2 snap-start"
+    >
+      {/* 1RA QUINCENA (IZQUIERDA) */}
+      <div 
+        onClick={() => setQuincenaActivaModal({ titulo: mesData.q1.titulo, datos: mesData.q1.datos, total: mesData.q1.total, serv: mesData.q1.serv, grafico: mesData.q1.grafico })}
+        className={`p-2.5 rounded-2xl border transition-all relative overflow-hidden cursor-pointer backdrop-blur-md shadow-2xs hover:shadow-xs ${getColorClases(mesData.q1)}`}
+      >
+        <div className="flex justify-between items-center mb-1 relative z-10">
+          <span className={`text-[10px] font-bold tracking-tight uppercase flex items-center gap-1 truncate ${getTextoColor(mesData.q1)}`}>
+            <Layers size={11} className={mesData.q1.enCurso ? 'text-amber-600' : mesData.q1.sinMovimiento ? 'text-rose-600' : 'text-emerald-600'} /> {mesData.q1.titulo}
+          </span>
+          {mesData.q1.enCurso && <span className="inline-block w-2 h-2 bg-amber-500 rounded-full animate-ping shadow-xs shrink-0"></span>}
+        </div>
+        
+        <div className="h-6 w-full my-1 relative z-10 flex items-center">
+          <svg viewBox="0 0 120 26" className="w-full h-full overflow-visible">
+            <defs>
+              <linearGradient id={`grad-${mesData.q1.id}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={mesData.q1.enCurso ? '#d97706' : mesData.q1.sinMovimiento ? '#e11d48' : '#059669'} stopOpacity="0.4" />
+                <stop offset="100%" stopColor={mesData.q1.enCurso ? '#d97706' : mesData.q1.sinMovimiento ? '#e11d48' : '#059669'} stopOpacity="0.0" />
+              </linearGradient>
+            </defs>
+            {mesData.q1.grafico?.areaD && <path d={mesData.q1.grafico.areaD} fill={`url(#grad-${mesData.q1.id})`} />}
+            {mesData.q1.grafico?.pathD && <path d={mesData.q1.grafico.pathD} fill="none" stroke={mesData.q1.enCurso ? '#d97706' : mesData.q1.sinMovimiento ? '#e11d48' : '#059669'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />}
+            {mesData.q1.grafico?.puntos?.map((pt, i) => (
+              <circle key={i} cx={pt.x} cy={pt.y} r={pt.monto > 0 ? 3 : 1} className={pt.monto > 0 ? (mesData.q1.enCurso ? 'fill-amber-600 ring-1 ring-amber-200' : 'fill-emerald-600 ring-1 ring-emerald-200') : 'fill-slate-400/30'} />
+            ))}
+          </svg>
+        </div>
+
+        <div className="flex items-center justify-between relative z-10 pt-1 border-t border-slate-200/50">
+          <span className="text-[9px] text-slate-500 font-semibold">{mesData.q1.serv} serv.</span>
+          <div className="flex items-center gap-1">
+            <span className={`text-[11px] font-black ${getMontoColor(mesData.q1)}`}>
+              {verMontoQ1 ? `$${mesData.q1.total.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : '••••'}
+            </span>
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                setVerMontoQ1(!verMontoQ1);
+              }}
+              className={`p-0.5 rounded transition cursor-pointer ${mesData.q1.enCurso ? 'text-amber-700 hover:bg-amber-200/50' : mesData.q1.sinMovimiento ? 'text-rose-700 hover:bg-rose-200/50' : 'text-emerald-700 hover:bg-emerald-200/50'}`}
+              title={verMontoQ1 ? "Ocultar monto" : "Ver monto"}
+            >
+              {verMontoQ1 ? <EyeOff size={12} /> : <Eye size={12} />}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 2DA QUINCENA (DERECHA) */}
+      <div 
+        onClick={() => setQuincenaActivaModal({ titulo: mesData.q2.titulo, datos: mesData.q2.datos, total: mesData.q2.total, serv: mesData.q2.serv, grafico: mesData.q2.grafico })}
+        className={`p-2.5 rounded-2xl border transition-all relative overflow-hidden cursor-pointer backdrop-blur-md shadow-2xs hover:shadow-xs ${getColorClases(mesData.q2)}`}
+      >
+        <div className="flex justify-between items-center mb-1 relative z-10">
+          <span className={`text-[10px] font-bold tracking-tight uppercase flex items-center gap-1 truncate ${getTextoColor(mesData.q2)}`}>
+            <Layers size={11} className={mesData.q2.enCurso ? 'text-amber-600' : mesData.q2.sinMovimiento ? 'text-rose-600' : 'text-emerald-600'} /> {mesData.q2.titulo}
+          </span>
+          {mesData.q2.enCurso && <span className="inline-block w-2 h-2 bg-amber-500 rounded-full animate-ping shadow-xs shrink-0"></span>}
+        </div>
+        
+        <div className="h-6 w-full my-1 relative z-10 flex items-center">
+          <svg viewBox="0 0 120 26" className="w-full h-full overflow-visible">
+            <defs>
+              <linearGradient id={`grad-${mesData.q2.id}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={mesData.q2.enCurso ? '#d97706' : mesData.q2.sinMovimiento ? '#e11d48' : '#059669'} stopOpacity="0.4" />
+                <stop offset="100%" stopColor={mesData.q2.enCurso ? '#d97706' : mesData.q2.sinMovimiento ? '#e11d48' : '#059669'} stopOpacity="0.0" />
+              </linearGradient>
+            </defs>
+            {mesData.q2.grafico?.areaD && <path d={mesData.q2.grafico.areaD} fill={`url(#grad-${mesData.q2.id})`} />}
+            {mesData.q2.grafico?.pathD && <path d={mesData.q2.grafico.pathD} fill="none" stroke={mesData.q2.enCurso ? '#d97706' : mesData.q2.sinMovimiento ? '#e11d48' : '#059669'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />}
+            {mesData.q2.grafico?.puntos?.map((pt, i) => (
+              <circle key={i} cx={pt.x} cy={pt.y} r={pt.monto > 0 ? 3 : 1} className={pt.monto > 0 ? (mesData.q2.enCurso ? 'fill-amber-600 ring-1 ring-amber-200' : 'fill-emerald-600 ring-1 ring-emerald-200') : 'fill-slate-400/30'} />
+            ))}
+          </svg>
+        </div>
+
+        <div className="flex items-center justify-between relative z-10 pt-1 border-t border-slate-200/50">
+          <span className="text-[9px] text-slate-500 font-semibold">{mesData.q2.serv} serv.</span>
+          <div className="flex items-center gap-1">
+            <span className={`text-[11px] font-black ${getMontoColor(mesData.q2)}`}>
+              {verMontoQ2 ? `$${mesData.q2.total.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : '••••'}
+            </span>
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                setVerMontoQ2(!verMontoQ2);
+              }}
+              className={`p-0.5 rounded transition cursor-pointer ${mesData.q2.enCurso ? 'text-amber-700 hover:bg-amber-200/50' : mesData.q2.sinMovimiento ? 'text-rose-700 hover:bg-rose-200/50' : 'text-emerald-700 hover:bg-emerald-200/50'}`}
+              title={verMontoQ2 ? "Ocultar monto" : "Ver monto"}
+            >
+              {verMontoQ2 ? <EyeOff size={12} /> : <Eye size={12} />}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Wallet = () => {
-  const [vistaTab, setVistaTab] = useState('manual');
+  const vistaTab = 'manual';
 
   const [filtroTiempo, setFiltroTiempo] = useState('dia');
   
@@ -89,6 +217,35 @@ const Wallet = () => {
   const [mostrarQ2, setMostrarQ2] = useState(false);
   const [timerQ1, setTimerQ1] = useState(null);
   const [timerQ2, setTimerQ2] = useState(null);
+  const [domicilioToggleManual, setDomicilioToggleManual] = useState(null);
+
+  const carruselRef = useRef(null);
+
+  const serviciosEnLineaBase = Boolean(
+    barberData?.serviciosEnLinea ??
+    barberData?.enLinea ??
+    barberData?.serviciosDomicilio ??
+    barberData?.domiciliosActivos ??
+    barberData?.recibiendoDomicilios ??
+    false
+  );
+  const serviciosEnLinea = domicilioToggleManual !== null ? domicilioToggleManual : serviciosEnLineaBase;
+
+  const handleToggleDomicilio = async () => {
+    const nuevoEstado = !serviciosEnLinea;
+    setDomicilioToggleManual(nuevoEstado);
+    const idProf = auth.currentUser?.uid || barberData?.id || barberData?.uid;
+    if (idProf) {
+      try {
+        await updateDoc(doc(db, 'profesionales', idProf), {
+          serviciosEnLinea: nuevoEstado,
+          serviciosDomicilio: nuevoEstado
+        });
+      } catch (err) {
+        console.error("Error al actualizar estado de servicios a domicilio:", err);
+      }
+    }
+  };
 
   const handleToggleQ1 = (e) => {
     e.stopPropagation();
@@ -320,6 +477,39 @@ const Wallet = () => {
     };
   }, []);
 
+  useEffect(() => {
+    let tRegreso = null;
+
+    const t1 = setTimeout(() => {
+      const elActual = document.getElementById('mes-actual-carrusel');
+      const cont = carruselRef.current;
+      if (elActual && cont) {
+        elActual.scrollIntoView({ behavior: 'auto', inline: 'center', block: 'nearest' });
+        const paso = elActual.offsetWidth || 300;
+        cont.scrollBy({ left: paso, behavior: 'smooth' });
+        tRegreso = setTimeout(() => {
+          const actualRef = document.getElementById('mes-actual-carrusel');
+          if (actualRef) {
+            actualRef.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+          }
+        }, 550);
+      }
+    }, 120);
+
+    const t2 = setTimeout(() => {
+      const elActual = document.getElementById('mes-actual-carrusel');
+      if (elActual) {
+        elActual.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+    }, 950);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      if (tRegreso) clearTimeout(tRegreso);
+    };
+  }, []);
+
   const parsearPrecioCita = (cita) => {
     const valorBruto = cita.precioTotal || cita.precio || cita.total || cita.costo || cita.valor;
     if (typeof valorBruto === 'number') return valorBruto;
@@ -541,6 +731,34 @@ const Wallet = () => {
 
   return (
     <div className="p-3 sm:p-5 bg-gradient-to-br from-slate-50 via-sky-50/25 to-indigo-100/30 text-slate-800 min-h-screen max-w-4xl mx-auto relative font-sans overflow-hidden select-none">
+
+      {/* Recuadro de estado de servicios a domicilio con bordes redondeados y botón deslizante */}
+      <div
+        role="status"
+        className={`w-full px-3.5 py-1.5 rounded-full flex items-center justify-between gap-2 text-[9px] font-black uppercase tracking-wider select-none transition-colors shadow-2xs ${
+          serviciosEnLinea
+            ? 'bg-emerald-600 text-white'
+            : 'bg-slate-200 text-slate-700'
+        }`}
+      >
+        <span>{serviciosEnLinea ? 'recibiendo servicios' : 'Fuera de servicios a domicilio'}</span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={serviciosEnLinea}
+          aria-label="Encender o apagar servicios a domicilio"
+          onClick={handleToggleDomicilio}
+          className={`w-8 h-4 rounded-full p-0.5 transition-colors duration-200 flex items-center cursor-pointer shrink-0 ${
+            serviciosEnLinea ? 'bg-emerald-900/40' : 'bg-slate-400/60'
+          }`}
+        >
+          <span
+            className={`w-3 h-3 rounded-full bg-white shadow-xs transform transition-transform duration-200 ease-out ${
+              serviciosEnLinea ? 'translate-x-4' : 'translate-x-0'
+            }`}
+          />
+        </button>
+      </div>
       
       {/* Manchas de colores degradadas y fluidas de fondo */}
       <div className="absolute top-[-5%] left-[-5%] w-[45vw] h-[45vw] bg-gradient-to-tr from-sky-400/20 to-teal-300/20 rounded-full blur-[90px] pointer-events-none animate-pulse"></div>
@@ -595,31 +813,6 @@ const Wallet = () => {
     )
   )}
 </div>
-
-      {/* Selector de Pestañas Pro */}
-      <div className="grid grid-cols-2 gap-2.5 mb-4 relative z-10">
-        <button
-          onClick={() => setVistaTab('manual')}
-          className={`py-2.5 px-4 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all border cursor-pointer ${
-            vistaTab === 'manual'
-              ? 'bg-gradient-to-r from-blue-600 to-sky-600 text-white border-transparent shadow-lg shadow-sky-500/20'
-              : 'bg-white/80 backdrop-blur-md text-slate-600 border-white/80 hover:bg-white shadow-xs'
-          }`}
-        >
-          <Percent size={15} /> Gestión Manual (%)
-        </button>
-
-        <button
-          onClick={() => setVistaTab('domicilios')}
-          className={`py-2.5 px-4 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all border cursor-pointer ${
-            vistaTab === 'domicilios'
-              ? 'bg-gradient-to-r from-slate-900 to-blue-950 text-white border-transparent shadow-lg shadow-slate-900/20'
-              : 'bg-white/80 backdrop-blur-md text-slate-600 border-white/80 hover:bg-white shadow-xs'
-          }`}
-        >
-          <Home size={15} /> Domicilios 100% ({citasFinalizadas.length})
-        </button>
-      </div>
 
       {vistaTab === 'manual' && (() => {
         const obtenerDatosDiario = (diaInicio, diaFin) => {
@@ -716,19 +909,9 @@ const Wallet = () => {
 
   {/* Contenedor con dir="rtl" para invertir el comportamiento y deslizar hacia la derecha */}
   <div 
+    ref={carruselRef}
     dir="rtl"
-    ref={(node) => {
-      if (node) {
-        setTimeout(() => {
-          const elActual = document.getElementById('mes-actual-carrusel');
-          if (elActual && !node.dataset.scrolled) {
-            elActual.scrollIntoView({ behavior: 'auto', inline: 'center', block: 'nearest' });
-            node.dataset.scrolled = 'true';
-          }
-        }, 100);
-      }
-    }}
-    className="flex gap-3 overflow-x-auto pb-2 scrollbar-none snap-x snap-mandatory"
+    className="flex gap-3 overflow-x-auto pb-2 scrollbar-none snap-x snap-mandatory scroll-smooth"
   >
     {(() => {
       const listaMeses = [];
@@ -831,133 +1014,16 @@ const Wallet = () => {
         });
       }
 
-      return listaMeses.map((mesData) => {
-        const [verMontoQ1, setVerMontoQ1] = useState(false);
-        const [verMontoQ2, setVerMontoQ2] = useState(false);
-
-        const getColorClases = (q) => {
-          if (q.enCurso) return 'bg-amber-400/20 border-amber-300 ring-1 ring-amber-400/30';
-          if (q.sinMovimiento) return 'bg-rose-500/15 border-rose-300 hover:border-rose-400';
-          return 'bg-emerald-500/15 border-emerald-300 hover:border-emerald-400';
-        };
-
-        const getTextoColor = (q) => {
-          if (q.enCurso) return 'text-amber-900';
-          if (q.sinMovimiento) return 'text-rose-900';
-          return 'text-emerald-900';
-        };
-
-        const getMontoColor = (q) => {
-          if (q.enCurso) return 'text-amber-950';
-          if (q.sinMovimiento) return 'text-rose-950';
-          return 'text-emerald-950';
-        };
-
-        return (
-          <div 
-            key={mesData.mesId}
-            id={mesData.esMesActual ? 'mes-actual-carrusel' : undefined}
-            dir="ltr"
-            className="min-w-[calc(100%-12px)] sm:min-w-[calc(50%-6px)] flex-1 grid grid-cols-2 gap-2 snap-start"
-          >
-            {/* 1RA QUINCENA (IZQUIERDA) */}
-            <div 
-              onClick={() => setQuincenaActivaModal({ titulo: mesData.q1.titulo, datos: mesData.q1.datos, total: mesData.q1.total, serv: mesData.q1.serv, grafico: mesData.q1.grafico })}
-              className={`p-2.5 rounded-2xl border transition-all relative overflow-hidden cursor-pointer backdrop-blur-md shadow-2xs hover:shadow-xs ${getColorClases(mesData.q1)}`}
-            >
-              <div className="flex justify-between items-center mb-1 relative z-10">
-                <span className={`text-[10px] font-bold tracking-tight uppercase flex items-center gap-1 truncate ${getTextoColor(mesData.q1)}`}>
-                  <Layers size={11} className={mesData.q1.enCurso ? 'text-amber-600' : mesData.q1.sinMovimiento ? 'text-rose-600' : 'text-emerald-600'} /> {mesData.q1.titulo}
-                </span>
-                {mesData.q1.enCurso && <span className="inline-block w-2 h-2 bg-amber-500 rounded-full animate-ping shadow-xs shrink-0"></span>}
-              </div>
-              
-              <div className="h-6 w-full my-1 relative z-10 flex items-center">
-                <svg viewBox="0 0 120 26" className="w-full h-full overflow-visible">
-                  <defs>
-                    <linearGradient id={`grad-${mesData.q1.id}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={mesData.q1.enCurso ? '#d97706' : mesData.q1.sinMovimiento ? '#e11d48' : '#059669'} stopOpacity="0.4" />
-                      <stop offset="100%" stopColor={mesData.q1.enCurso ? '#d97706' : mesData.q1.sinMovimiento ? '#e11d48' : '#059669'} stopOpacity="0.0" />
-                    </linearGradient>
-                  </defs>
-                  {mesData.q1.grafico?.areaD && <path d={mesData.q1.grafico.areaD} fill={`url(#grad-${mesData.q1.id})`} />}
-                  {mesData.q1.grafico?.pathD && <path d={mesData.q1.grafico.pathD} fill="none" stroke={mesData.q1.enCurso ? '#d97706' : mesData.q1.sinMovimiento ? '#e11d48' : '#059669'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />}
-                  {mesData.q1.grafico?.puntos?.map((pt, i) => (
-                    <circle key={i} cx={pt.x} cy={pt.y} r={pt.monto > 0 ? 3 : 1} className={pt.monto > 0 ? (mesData.q1.enCurso ? 'fill-amber-600 ring-1 ring-amber-200' : 'fill-emerald-600 ring-1 ring-emerald-200') : 'fill-slate-400/30'} />
-                  ))}
-                </svg>
-              </div>
-
-              <div className="flex items-center justify-between relative z-10 pt-1 border-t border-slate-200/50">
-                <span className="text-[9px] text-slate-500 font-semibold">{mesData.q1.serv} serv.</span>
-                <div className="flex items-center gap-1">
-                  <span className={`text-[11px] font-black ${getMontoColor(mesData.q1)}`}>
-                    {verMontoQ1 ? `$${mesData.q1.total.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : '••••'}
-                  </span>
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setVerMontoQ1(!verMontoQ1);
-                    }}
-                    className={`p-0.5 rounded transition cursor-pointer ${mesData.q1.enCurso ? 'text-amber-700 hover:bg-amber-200/50' : mesData.q1.sinMovimiento ? 'text-rose-700 hover:bg-rose-200/50' : 'text-emerald-700 hover:bg-emerald-200/50'}`}
-                    title={verMontoQ1 ? "Ocultar monto" : "Ver monto"}
-                  >
-                    {verMontoQ1 ? <EyeOff size={12} /> : <Eye size={12} />}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* 2DA QUINCENA (DERECHA) */}
-            <div 
-              onClick={() => setQuincenaActivaModal({ titulo: mesData.q2.titulo, datos: mesData.q2.datos, total: mesData.q2.total, serv: mesData.q2.serv, grafico: mesData.q2.grafico })}
-              className={`p-2.5 rounded-2xl border transition-all relative overflow-hidden cursor-pointer backdrop-blur-md shadow-2xs hover:shadow-xs ${getColorClases(mesData.q2)}`}
-            >
-              <div className="flex justify-between items-center mb-1 relative z-10">
-                <span className={`text-[10px] font-bold tracking-tight uppercase flex items-center gap-1 truncate ${getTextoColor(mesData.q2)}`}>
-                  <Layers size={11} className={mesData.q2.enCurso ? 'text-amber-600' : mesData.q2.sinMovimiento ? 'text-rose-600' : 'text-emerald-600'} /> {mesData.q2.titulo}
-                </span>
-                {mesData.q2.enCurso && <span className="inline-block w-2 h-2 bg-amber-500 rounded-full animate-ping shadow-xs shrink-0"></span>}
-              </div>
-              
-              <div className="h-6 w-full my-1 relative z-10 flex items-center">
-                <svg viewBox="0 0 120 26" className="w-full h-full overflow-visible">
-                  <defs>
-                    <linearGradient id={`grad-${mesData.q2.id}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={mesData.q2.enCurso ? '#d97706' : mesData.q2.sinMovimiento ? '#e11d48' : '#059669'} stopOpacity="0.4" />
-                      <stop offset="100%" stopColor={mesData.q2.enCurso ? '#d97706' : mesData.q2.sinMovimiento ? '#e11d48' : '#059669'} stopOpacity="0.0" />
-                    </linearGradient>
-                  </defs>
-                  {mesData.q2.grafico?.areaD && <path d={mesData.q2.grafico.areaD} fill={`url(#grad-${mesData.q2.id})`} />}
-                  {mesData.q2.grafico?.pathD && <path d={mesData.q2.grafico.pathD} fill="none" stroke={mesData.q2.enCurso ? '#d97706' : mesData.q2.sinMovimiento ? '#e11d48' : '#059669'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />}
-                  {mesData.q2.grafico?.puntos?.map((pt, i) => (
-                    <circle key={i} cx={pt.x} cy={pt.y} r={pt.monto > 0 ? 3 : 1} className={pt.monto > 0 ? (mesData.q2.enCurso ? 'fill-amber-600 ring-1 ring-amber-200' : 'fill-emerald-600 ring-1 ring-emerald-200') : 'fill-slate-400/30'} />
-                  ))}
-                </svg>
-              </div>
-
-              <div className="flex items-center justify-between relative z-10 pt-1 border-t border-slate-200/50">
-                <span className="text-[9px] text-slate-500 font-semibold">{mesData.q2.serv} serv.</span>
-                <div className="flex items-center gap-1">
-                  <span className={`text-[11px] font-black ${getMontoColor(mesData.q2)}`}>
-                    {verMontoQ2 ? `$${mesData.q2.total.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : '••••'}
-                  </span>
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setVerMontoQ2(!verMontoQ2);
-                    }}
-                    className={`p-0.5 rounded transition cursor-pointer ${mesData.q2.enCurso ? 'text-amber-700 hover:bg-amber-200/50' : mesData.q2.sinMovimiento ? 'text-rose-700 hover:bg-rose-200/50' : 'text-emerald-700 hover:bg-emerald-200/50'}`}
-                    title={verMontoQ2 ? "Ocultar monto" : "Ver monto"}
-                  >
-                    {verMontoQ2 ? <EyeOff size={12} /> : <Eye size={12} />}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      });
+      return listaMeses.map((mesData) => (
+        <MesCarruselItem
+          key={mesData.mesId}
+          mesData={mesData}
+          setQuincenaActivaModal={setQuincenaActivaModal}
+          anioActual={anioActual}
+          mesActual={mesActual}
+          diaActual={diaActual}
+        />
+      ));
     })()}
   </div>
 </div>
