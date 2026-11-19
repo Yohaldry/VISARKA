@@ -92,7 +92,7 @@ export default function HomePrincipal() {
                       ? <a href={item.link} className={`inline-block ${item.btn} font-extrabold text-[10px] sm:text-xs px-4 py-2.5 sm:px-6 sm:py-3 rounded-xl shadow-md transition cursor-pointer`}>{item.boton}</a>
                       : <button className={`${item.btn} font-extrabold text-[10px] sm:text-xs px-4 py-2.5 sm:px-6 sm:py-3 rounded-xl shadow-md transition cursor-pointer`}>{item.boton}</button>}
                   </div>
-                  <div className="absolute -right-4 -bottom-4 sm:right-6 sm:bottom-0 w-44 h-36 sm:w-80 sm:h-56 flex items-center justify-center pointer-events-none z-0">
+                  <div className="absolute -right-12 -bottom-4 sm:right-6 sm:bottom-0 w-70 h-50 sm:w-80 sm:h-56 flex items-center justify-center pointer-events-none z-0">
                     {item.type === 'img'
                       ? <img src={item.content} alt="Dashboard Barbero" className="w-full h-full object-contain drop-shadow-2xl opacity-100 scale-125 sm:scale-110" />
                       : <span className="text-6xl sm:text-9xl select-none drop-shadow-lg">{item.content}</span>}
