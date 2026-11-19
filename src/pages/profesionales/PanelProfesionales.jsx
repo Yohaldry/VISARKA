@@ -33,8 +33,9 @@ const zonasBogotaDisponibles = [
 ];
 
 export default function PanelProfesionales() {
-  const [authUser, setAuthUser] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
+  const [authUser, setAuthUser] = useState(auth.currentUser || null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [perfilCargando, setPerfilCargando] = useState(true);
   const [dragOverInfo, setDragOverInfo] = useState({ diaStr: null, horaTexto: null, x: 0, y: 0 });
   const [activeTab, setActiveTab] = useState('facturacion');
   const [loading, setLoading] = useState(false);
@@ -250,6 +251,14 @@ const serviciosDisponiblesParaElegir = serviciosFirebase.filter(s => {
   };
 
   const renderFieldView = (label, value) => {
+    if (perfilCargando && !barberData) {
+      return (
+        <div className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 animate-pulse space-y-1.5">
+          <div className="h-2.5 w-20 bg-slate-200 rounded" />
+          <div className="h-3.5 w-36 bg-slate-200 rounded" />
+        </div>
+      );
+    }
     const isEmpty = !value || (Array.isArray(value) && value.length === 0) || String(value).trim() === '';
     return (
       <div className={`p-2.5 rounded-xl border transition-all ${isEmpty ? 'bg-red-50 border-red-300 text-red-900' : 'bg-slate-50 border-slate-200 text-slate-800'}`}>
@@ -326,6 +335,7 @@ const serviciosDisponiblesParaElegir = serviciosFirebase.filter(s => {
     let unsubServicios = () => {};
     let unsubCitas = () => {};
     let unsubBloqueos = () => {};
+    let isFirstAuthEvent = true;
 
     const calcTime = () => {
       const now = new Date();
@@ -335,8 +345,14 @@ const serviciosDisponiblesParaElegir = serviciosFirebase.filter(s => {
     const t = setInterval(calcTime, 30000);
 
     const unsubAuth = onAuthStateChanged(auth, async (userAuth) => {
+      if (!isFirstAuthEvent && userAuth && authUser?.uid !== userAuth.uid) {
+        setIsLoggingIn(true);
+      }
+      isFirstAuthEvent = false;
+
       if (userAuth) {
         setAuthUser(userAuth);
+        setPerfilCargando(true);
         const currentUserId = userAuth.uid;
 
        // DENTRO DEL useEffect:
@@ -396,10 +412,12 @@ unsubFirestoreStatus = onSnapshot(doc(db, 'profesionales', currentUserId), async
   } else {
     setCorreoPerfil(userAuth.email || '');
   }
-  setAuthLoading(false);
+  setPerfilCargando(false);
+  setIsLoggingIn(false);
 }, (error) => {
   console.error("Error al verificar estado del profesional:", error);
-  setAuthLoading(false);
+  setPerfilCargando(false);
+  setIsLoggingIn(false);
 });
 
         const qServicios = query(collection(db, 'servicios'), where('barberoId', '==', currentUserId));
@@ -505,12 +523,13 @@ unsubFirestoreStatus = onSnapshot(doc(db, 'profesionales', currentUserId), async
         setCitasFirestore([]); 
         setServiciosFirebase([]);
         setNotificaciones([]);
-        setAuthLoading(false);
+        setPerfilCargando(false);
+        setIsLoggingIn(false);
         window.location.href = '/loginprofesionales';
       }
     });
 
-    const safety = setTimeout(() => setAuthLoading(false), 2500);
+    const safety = setTimeout(() => { setPerfilCargando(false); setIsLoggingIn(false); }, 2500);
     return () => { 
       unsubAuth(); 
       clearTimeout(safety); 
@@ -672,7 +691,7 @@ const abrirModalCita = (cita) => {
     }
   };
 
-  if (authLoading) return (
+  if (isLoggingIn) return (
     <div className="fixed inset-0 z-[99999] bg-white flex flex-col items-center justify-center animate-in fade-in zoom-in duration-300 select-none">
       <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white border border-blue-200 shadow-xl flex items-center justify-center p-2.5 mb-4 animate-pulse">
         <img 
@@ -703,10 +722,17 @@ const abrirModalCita = (cita) => {
               className="w-full h-full object-contain"
             />
           </div>
-          <div className="flex flex-col">
-            <span className="text-[11px] font-black uppercase text-slate-900">Hola, {nombre.split(' ')[0]}</span>
-            <span className="text-[8px] text-slate-400 font-bold">VISARKA • {ciudad} • {especialidad}</span>
-          </div>
+          {perfilCargando && !barberData ? (
+            <div className="flex flex-col gap-1 animate-pulse">
+              <div className="h-3 w-20 bg-slate-200 rounded" />
+              <div className="h-2 w-28 bg-slate-100 rounded" />
+            </div>
+          ) : (
+            <div className="flex flex-col">
+              <span className="text-[11px] font-black uppercase text-slate-900">Hola, {nombre.split(' ')[0]}</span>
+              <span className="text-[8px] text-slate-400 font-bold">VISARKA • {ciudad} • {especialidad}</span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2 relative">
@@ -1620,21 +1646,28 @@ const abrirModalCita = (cita) => {
                   {renderFieldView("Porcentaje (%)", porcentaje !== undefined && porcentaje !== null && porcentaje !== '' ? `${porcentaje}%` : '0%')}
                 </div>
 
-                <div className={`p-2.5 rounded-xl border transition-all ${!zonasTrabajo || zonasTrabajo.length === 0 ? 'bg-red-50 border-red-300 text-red-900' : 'bg-slate-50 border-slate-200 text-slate-800'}`}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className={`font-bold uppercase text-[9px] ${!zonasTrabajo || zonasTrabajo.length === 0 ? 'text-red-600' : 'text-slate-500'}`}>Zonas de Bogotá donde trabajas</span>
-                    {(!zonasTrabajo || zonasTrabajo.length === 0) && <AlertCircle className="w-3 h-3 text-red-500 shrink-0" />}
+                {perfilCargando && !barberData ? (
+                  <div className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 animate-pulse space-y-1.5">
+                    <div className="h-2.5 w-32 bg-slate-200 rounded" />
+                    <div className="h-4 w-24 bg-slate-200 rounded" />
                   </div>
-                  {(!zonasTrabajo || zonasTrabajo.length === 0) ? (
-                    <span className="text-red-500 italic text-[10px]">⚠️ Debes seleccionar al menos una zona</span>
-                  ) : (
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {zonasTrabajo.map(z => (
-                        <span key={z} className="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-md font-bold text-[9px]">{z}</span>
-                      ))}
+                ) : (
+                  <div className={`p-2.5 rounded-xl border transition-all ${!zonasTrabajo || zonasTrabajo.length === 0 ? 'bg-red-50 border-red-300 text-red-900' : 'bg-slate-50 border-slate-200 text-slate-800'}`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className={`font-bold uppercase text-[9px] ${!zonasTrabajo || zonasTrabajo.length === 0 ? 'text-red-600' : 'text-slate-500'}`}>Zonas de Bogotá donde trabajas</span>
+                      {(!zonasTrabajo || zonasTrabajo.length === 0) && <AlertCircle className="w-3 h-3 text-red-500 shrink-0" />}
                     </div>
-                  )}
-                </div>
+                    {(!zonasTrabajo || zonasTrabajo.length === 0) ? (
+                      <span className="text-red-500 italic text-[10px]">⚠️ Debes seleccionar al menos una zona</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {zonasTrabajo.map(z => (
+                          <span key={z} className="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-md font-bold text-[9px]">{z}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
