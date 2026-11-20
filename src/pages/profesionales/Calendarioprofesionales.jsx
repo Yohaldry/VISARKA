@@ -1,16 +1,53 @@
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, getDoc, query, where, deleteDoc, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, getDoc, query, where, deleteDoc, doc, setDoc, updateDoc, onSnapshot, addDoc } from 'firebase/firestore';
 import { auth, db } from '../../components/firebase';
 
 const HORAS = ['06:00 AM', '07:00 AM', '08:00 AM', '09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM', '06:00 PM', '07:00 PM', '08:00 PM', '09:00 PM', '10:00 PM', '11:00 PM'];
-const PEDIDOS = [
-  { cliente: 'Mateo Rojas', servicio: 'Degradado + Barba', zona: 'Chapinero Alto, Bogotá', distancia: '2.4 km', valor: '$52.000 COP', pin: { top: '34%', left: '58%' } },
-  { cliente: 'Camila Gómez', servicio: 'Corte Clásico + Facial', zona: 'Usaquén, Bogotá', distancia: '3.8 km', valor: '$65.000 COP', pin: { top: '26%', left: '66%' } },
-  { cliente: 'Sebastián Díaz', servicio: 'Freestyle + Cejas', zona: 'Teusaquillo, Bogotá', distancia: '1.9 km', valor: '$45.000 COP', pin: { top: '58%', left: '42%' } },
+const ZONAS_BOGOTA_MAPA = [
+  { claves: ['usaquen', 'cedritos', 'santa barbara', 'tobarin', 'contador'], coords: { lat: 4.695, lon: -74.031 }, pin: { top: '24%', left: '65%' } },
+  { claves: ['chapinero alto', 'chapinero', 'quinta camacho', 'la cabrera', 'rosales'], coords: { lat: 4.652, lon: -74.058 }, pin: { top: '36%', left: '57%' } },
+  { claves: ['teusaquillo', 'palermo', 'soledad', 'galerias', 'esmeralda'], coords: { lat: 4.638, lon: -74.084 }, pin: { top: '54%', left: '44%' } },
+  { claves: ['suba', 'niza', 'colina campestre', 'mazuren'], coords: { lat: 4.742, lon: -74.078 }, pin: { top: '18%', left: '46%' } },
+  { claves: ['engativa', 'alamos', 'normandia', 'boyaca'], coords: { lat: 4.698, lon: -74.118 }, pin: { top: '32%', left: '31%' } },
+  { claves: ['fontibon', 'modelia', 'hayuelos', 'salitre'], coords: { lat: 4.672, lon: -74.132 }, pin: { top: '46%', left: '28%' } },
+  { claves: ['kennedy', 'tintal', 'castilla', 'americas'], coords: { lat: 4.628, lon: -74.152 }, pin: { top: '66%', left: '24%' } },
+  { claves: ['barrios unidos', '7 de agosto', 'polo'], coords: { lat: 4.674, lon: -74.076 }, pin: { top: '38%', left: '48%' } },
+  { claves: ['santa fe', 'centro', 'candelaria', 'macarena'], coords: { lat: 4.609, lon: -74.072 }, pin: { top: '62%', left: '53%' } },
+  { claves: ['rafael uribe', 'quiroga', 'restrepo', 'antonio narino'], coords: { lat: 4.582, lon: -74.098 }, pin: { top: '76%', left: '42%' } },
 ];
+const norm = (t = '') => String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+const parsePrecioNumero = (val) => {
+  if (typeof val === 'number' && !Number.isNaN(val)) return val;
+  if (!val) return null;
+  const digits = String(val).replace(/[^\d]/g, '');
+  if (!digits) return null;
+  const num = Number(digits);
+  return Number.isNaN(num) ? null : num;
+};
+const ubicarSolicitudEnMapa = (sol) => {
+  if (typeof sol?.lat === 'number' && typeof sol?.lon === 'number') {
+    const topPct = Math.min(82, Math.max(18, Number((50 - (sol.lat - 4.665) * 420).toFixed(1))));
+    const leftPct = Math.min(82, Math.max(18, Number((50 + (sol.lon + 74.08) * 420).toFixed(1))));
+    return { coords: { lat: sol.lat, lon: sol.lon }, pin: { top: `${topPct}%`, left: `${leftPct}%` } };
+  }
+  const textoDir = norm(`${sol?.direccion || ''} ${sol?.zona || ''}`);
+  const match = ZONAS_BOGOTA_MAPA.find(z => z.claves.some(k => textoDir.includes(k)));
+  if (match) return { coords: match.coords, pin: match.pin };
+  const hash = Array.from(textoDir || sol?.id || 'sol').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+  const offsetLat = (((hash % 17) - 8) * 0.004);
+  const offsetLon = ((((hash >> 3) % 17) - 8) * 0.005);
+  const lat = Number((4.665 + offsetLat).toFixed(5));
+  const lon = Number((-74.08 + offsetLon).toFixed(5));
+  return {
+    coords: { lat, lon },
+    pin: { top: `${50 - offsetLat * 420}%`, left: `${50 + offsetLon * 420}%` }
+  };
+};
+const fechaLocal = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 export default function Calendarioprofesionales({ barberoId: propId }) {
   const [barberoId, setBarberoId] = useState(propId || '');
+  const [authUid, setAuthUid] = useState(auth.currentUser?.uid || '');
   const [tab, setTab] = useState('en_linea');
   const [subTabCitas, setSubTabCitas] = useState('pendientes');
   const [selectedDate, setSelectedDate] = useState(null);
@@ -25,7 +62,12 @@ export default function Calendarioprofesionales({ barberoId: propId }) {
   const [filtroDiaSemana, setFiltroDiaSemana] = useState('');
   const [enLinea, setEnLinea] = useState(false);
   const [modalConfirmarEncendido, setModalConfirmarEncendido] = useState(false);
-  const [pedidoEntrante, setPedidoEntrante] = useState(PEDIDOS[0]);
+  const [pedidoEntrante, setPedidoEntrante] = useState(null);
+  const [solicitudesEnLinea, setSolicitudesEnLinea] = useState([]);
+  const [detalleSolicitudModal, setDetalleSolicitudModal] = useState(null);
+  const [confirmarSolicitudModal, setConfirmarSolicitudModal] = useState(null);
+  const [serviciosAceptarSel, setServiciosAceptarSel] = useState([]);
+  const [zonasProfesional, setZonasProfesional] = useState([]);
   const [zoom, setZoom] = useState(0.9);
   const [sliderVal, setSliderVal] = useState(0);
   const [confirmarFinalizar, setConfirmarFinalizar] = useState(false);
@@ -44,23 +86,195 @@ export default function Calendarioprofesionales({ barberoId: propId }) {
   const [mapaFull, setMapaFull] = useState(false);
   const [mapPan, setMapPan] = useState({ lat: 4.665, lon: -74.08 });
   const [gestionModalOpen, setGestionModalOpen] = useState(false);
-const horariosBoxRef = React.useRef(null);
-const switchDragRef = React.useRef({ startX: 0, moved: false, pointerId: null });
-const [filtroFechaGestion, setFiltroFechaGestion] = useState('');
+  const horariosBoxRef = React.useRef(null);
+  const switchDragRef = React.useRef({ startX: 0, moved: false, pointerId: null });
+  const [filtroFechaGestion, setFiltroFechaGestion] = useState('');
 
   useEffect(() => {
-    if (propId) setBarberoId(propId);
-    else if (auth.currentUser) setBarberoId(auth.currentUser.uid);
-    else { const unsub = auth.onAuthStateChanged(u => u && setBarberoId(u.uid)); return () => unsub(); }
+    const unsub = auth.onAuthStateChanged(u => {
+      const uid = u?.uid || '';
+      setAuthUid(uid);
+      if (propId) setBarberoId(propId);
+      else if (uid) setBarberoId(uid);
+    });
+    return () => unsub();
   }, [propId]);
 
   useEffect(() => { if (barberoId) { fetchData(); fetchServicios(); fetchEstadoDomicilios(); } }, [barberoId]);
 
+  useEffect(() => {
+    const uidActual = barberoId || authUid || '';
+    const unsub = onSnapshot(collection(db, 'serviciosenlinea'), (snap) => {
+      const lista = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(s => (s.estado || 'pendiente').toLowerCase() === 'pendiente')
+        .filter(s => {
+          const destino = s.profesionalId || s.profesionalDestinoId || s.barberoId || s.profesionalUid || s.idProfesional || '';
+          if (!destino) return !s.soloProfesional;
+          if (!uidActual) return true;
+          return String(destino) === String(uidActual);
+        });
+      setSolicitudesEnLinea(lista);
+    });
+    return () => unsub();
+  }, [barberoId, authUid]);
+
+  const estaEnMiZona = (sol) => {
+    const obj = norm(sol.zona || sol.direccion || '');
+    if (!obj || !zonasProfesional.length) return true;
+    return zonasProfesional.some(z => { const zn = norm(z); return zn && (zn.includes(obj) || obj.includes(zn)); });
+  };
+
+  const resolverServiciosCliente = (sol) => {
+    const raw = Array.isArray(sol?.servicios) ? sol.servicios : [];
+    const preciosDetalle = Array.isArray(sol?.serviciosDetalle) ? sol.serviciosDetalle : [];
+
+    return raw.map((item) => {
+      if (typeof item === 'object' && item !== null) {
+        const nombre = item.nombre || item.name || item.servicio || 'Servicio';
+        const matchDetalle = preciosDetalle.find(
+          (pd) => norm(pd?.nombre || pd?.name || '') === norm(nombre)
+        );
+        const matchDisp = serviciosDisponibles.find(
+          (sd) => norm(sd.nombre) === norm(nombre) || norm(sd.nombre).includes(norm(nombre)) || norm(nombre).includes(norm(sd.nombre))
+        );
+        const rawPrecio =
+          item.precioNum ??
+          item.precio ??
+          item.precioFormatted ??
+          item.valor ??
+          item.price ??
+          matchDetalle?.precioNum ??
+          matchDetalle?.precio ??
+          matchDetalle?.precioFormatted ??
+          matchDisp?.precioNum ??
+          matchDisp?.precioFormatted ??
+          35000;
+        const precioNum = parsePrecioNumero(rawPrecio) ?? 35000;
+        const precioTexto =
+          (typeof item.precioFormatted === 'string' && item.precioFormatted.trim()) ||
+          (typeof item.precio === 'string' && item.precio.trim()) ||
+          (typeof matchDetalle?.precioFormatted === 'string' && matchDetalle.precioFormatted.trim()) ||
+          (typeof matchDetalle?.precio === 'string' && matchDetalle.precio.trim()) ||
+          matchDisp?.precioFormatted ||
+          `$${precioNum.toLocaleString('es-CO')} COP`;
+        return { nombre, precioNum, precio: precioTexto };
+      }
+
+      const nombreStr = String(item);
+      const matchDetalle = preciosDetalle.find(
+        (pd) => norm(pd?.nombre || pd?.name || '') === norm(nombreStr)
+      );
+      const matchDisp = serviciosDisponibles.find(
+        (sd) => norm(sd.nombre) === norm(nombreStr) || norm(sd.nombre).includes(norm(nombreStr)) || norm(nombreStr).includes(norm(sd.nombre))
+      );
+
+      const rawPrecio =
+        matchDetalle?.precioNum ??
+        matchDetalle?.precio ??
+        matchDetalle?.precioFormatted ??
+        matchDisp?.precioNum ??
+        matchDisp?.precioFormatted ??
+        35000;
+      const precioNum = parsePrecioNumero(rawPrecio) ?? 35000;
+      const precioTexto =
+        (typeof matchDetalle?.precioFormatted === 'string' && matchDetalle.precioFormatted.trim()) ||
+        (typeof matchDetalle?.precio === 'string' && matchDetalle.precio.trim()) ||
+        matchDisp?.precioFormatted ||
+        `$${precioNum.toLocaleString('es-CO')} COP`;
+
+      return {
+        nombre: matchDisp?.nombre || nombreStr,
+        precioNum,
+        precio: precioTexto
+      };
+    });
+  };
+
+  const abrirDetalleSolicitud = (sol) => {
+    setDetalleSolicitudModal({
+      ...sol,
+      serviciosResueltos: resolverServiciosCliente(sol)
+    });
+  };
+
+  const abrirConfirmarSolicitud = (sol) => {
+    if (!barberoId) return alert('Inicia sesión para aceptar.');
+    setServiciosAceptarSel(resolverServiciosCliente(sol));
+    setConfirmarSolicitudModal(sol);
+  };
+
+  const handleEliminarSolicitudLista = async (solId) => {
+    try {
+      await deleteDoc(doc(db, 'serviciosenlinea', solId));
+      if (confirmarSolicitudModal?.id === solId) setConfirmarSolicitudModal(null);
+      if (detalleSolicitudModal?.id === solId) setDetalleSolicitudModal(null);
+    } catch (e) {
+      console.error(e);
+      alert('Error al eliminar la solicitud');
+    }
+  };
+
+  const confirmarAceptarSolicitud = async () => {
+    const sol = confirmarSolicitudModal;
+    if (!sol || !barberoId) return;
+    try {
+      const ahora = new Date();
+      const llegada = new Date(ahora.getTime() + 30 * 60000);
+      const fecha = fechaLocal(llegada);
+      const hora = llegada.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+      const serviciosLimpios = serviciosAceptarSel.map(s => {
+        const precioNum = parsePrecioNumero(s.precioNum ?? s.precio ?? s.precioFormatted) ?? 35000;
+        const precioTexto =
+          (typeof s.precioFormatted === 'string' && s.precioFormatted.trim()) ||
+          (typeof s.precio === 'string' && s.precio.trim()) ||
+          `$${precioNum.toLocaleString('es-CO')} COP`;
+        return { nombre: s.nombre || s.name || 'Servicio', precioNum, precio: precioTexto };
+      });
+      const precioTotal = serviciosLimpios.length
+        ? `$${serviciosLimpios.reduce((a, s) => a + s.precioNum, 0).toLocaleString('es-CO')} COP`
+        : 'N/A';
+
+      await addDoc(collection(db, 'citas'), {
+        barberoId,
+        nombreCliente: sol.clienteNombre || 'Cliente',
+        telefono: sol.clienteTelefono || '',
+        email: sol.email || '',
+        direccion: sol.direccion || '',
+        zona: sol.zona || '',
+        torreApto: sol.torreApto || '',
+        referencia: sol.referencia || '',
+        parqueaderoMoto: Boolean(sol.parqueaderoMoto),
+        servicios: serviciosLimpios,
+        precioTotal,
+        descripcion: sol.descripcion || '',
+        fecha,
+        hora,
+        estado: 'confirmada',
+        origen: 'serviciosenlinea'
+      });
+
+      await updateDoc(doc(db, 'serviciosenlinea', sol.id), {
+        estado: 'aceptada',
+        aceptadaEn: new Date().toISOString(),
+        barberoId
+      });
+
+      setConfirmarSolicitudModal(null);
+      setDetalleSolicitudModal(null);
+      fetchData();
+      alert(`Cita agendada para ${sol.clienteNombre || 'Cliente'} · Total: ${precioTotal} · Llegada en 30 min (${fecha} · ${hora})`);
+    } catch (e) { console.error(e); alert('Error al aceptar'); }
+  };
+
   const fetchEstadoDomicilios = async () => {
     try {
       const snap = await getDoc(doc(db, 'profesionales', barberoId));
-      if (snap.exists() && typeof snap.data()?.activodomicilios === 'boolean') {
-        setEnLinea(snap.data().activodomicilios);
+      if (snap.exists()) {
+        const d = snap.data();
+        if (typeof d?.activodomicilios === 'boolean') setEnLinea(d.activodomicilios);
+        const zonas = Array.isArray(d?.zonasTrabajo) ? d.zonasTrabajo : [d?.localidad, d?.zona].filter(Boolean);
+        setZonasProfesional(zonas);
       }
     } catch (e) { console.error(e); }
   };
@@ -102,11 +316,27 @@ const [filtroFechaGestion, setFiltroFechaGestion] = useState('');
   };
 
   useEffect(() => {
-    if (!enLinea) return;
-    let idx = 0;
-    const t = setInterval(() => { idx = (idx + 1) % PEDIDOS.length; setPedidoEntrante(PEDIDOS[idx]); }, 6000);
-    return () => clearInterval(t);
-  }, [enLinea]);
+    if (!enLinea || !solicitudesEnLinea.length) {
+      setPedidoEntrante(null);
+      return;
+    }
+    const sol = solicitudesEnLinea[0];
+    const ubic = ubicarSolicitudEnMapa(sol);
+    const serviciosRes = resolverServiciosCliente(sol);
+    const srvTxt = serviciosRes.length
+      ? serviciosRes.map(s => s.nombre).join(', ')
+      : 'Servicio';
+    const totalNum = serviciosRes.reduce((acc, s) => acc + s.precioNum, 0);
+    setPedidoEntrante({
+      ...sol,
+      cliente: sol.clienteNombre || 'Cliente',
+      servicio: srvTxt,
+      zona: sol.direccion || sol.zona || 'Bogotá',
+      valor: sol.precioTotal || (serviciosRes.length ? `$${totalNum.toLocaleString('es-CO')} COP` : 'N/A'),
+      coords: ubic.coords,
+      pin: ubic.pin
+    });
+  }, [enLinea, solicitudesEnLinea, serviciosDisponibles]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -127,7 +357,7 @@ const [filtroFechaGestion, setFiltroFechaGestion] = useState('');
       snap.forEach(d => {
         const s = d.data();
         if (!String(s.duracion || s.categoria || s.nombre || '').toLowerCase().includes('interno')) {
-          const p = Number(s.precioNum || s.precio || 35000);
+          const p = parsePrecioNumero(s.precioNum ?? s.precio ?? s.precioText ?? s.valor) ?? 35000;
           lista.push({ id: d.id, nombre: s.nombre || s.name || 'Servicio', precioNum: p, precioFormatted: s.precioText || `$${p.toLocaleString('es-CO')} COP` });
         }
       });
@@ -180,8 +410,12 @@ const [filtroFechaGestion, setFiltroFechaGestion] = useState('');
   const handleGuardarServicios = async () => {
     if (!serviciosSeleccionadosCita.length) return alert('Selecciona al menos un servicio.');
     const serviciosLimpios = serviciosSeleccionadosCita.map(s => {
-      const precioNum = Number(s.precioNum || s.precio || 35000);
-      return { nombre: s.nombre || s.name || 'Servicio', precioNum, precio: s.precioFormatted || s.precio || `$${precioNum.toLocaleString('es-CO')} COP` };
+      const precioNum = parsePrecioNumero(s.precioNum ?? s.precio ?? s.precioFormatted) ?? 35000;
+      const precioTexto =
+        (typeof s.precioFormatted === 'string' && s.precioFormatted.trim()) ||
+        (typeof s.precio === 'string' && s.precio.trim()) ||
+        `$${precioNum.toLocaleString('es-CO')} COP`;
+      return { nombre: s.nombre || s.name || 'Servicio', precioNum, precio: precioTexto };
     });
     const totalF = `$${serviciosLimpios.reduce((a, s) => a + s.precioNum, 0).toLocaleString('es-CO')} COP`;
     try {
@@ -221,8 +455,10 @@ const [filtroFechaGestion, setFiltroFechaGestion] = useState('');
     return new Date(y, m - 1, d).getDay() === Number(filtroDiaSemana);
   });
 
-  const hoyStr = new Date().toISOString().split('T')[0];
+  const hoyStr = fechaLocal();
   const openCita = (c) => { setCitaModal(c); setEditandoServicios(false); setSliderVal(0); setConfirmarFinalizar(false); setServiciosSeleccionadosCita(c.servicios || []); };
+
+  const totalAceptarModal = serviciosAceptarSel.reduce((acc, s) => acc + (parsePrecioNumero(s.precioNum ?? s.precio ?? s.precioFormatted) ?? 35000), 0);
 
   return (
     <div className="max-w-3xl mx-auto p-4 sm:p-6 bg-slate-50 text-slate-800 rounded-3xl shadow-2xl border border-slate-200 font-mono">
@@ -247,25 +483,25 @@ const [filtroFechaGestion, setFiltroFechaGestion] = useState('');
               <h3 className="font-bold text-slate-800 capitalize text-sm">{currDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}</h3>
               <div className="flex items-center gap-2">
                 <button
-  type="button"
-  onClick={() => setGestionModalOpen(true)}
-  aria-label="Gestionar horarios"
-  className="bg-blue-600 hover:bg-blue-700 text-white w-8 h-8 rounded-xl font-bold text-[11px] border border-blue-700 shadow-md transition-all cursor-pointer flex items-center justify-center"
->
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className="w-4 h-4 text-white"
-  >
-    <circle cx="12" cy="12" r="3" />
-    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l-.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-  </svg>
-</button>
+                  type="button"
+                  onClick={() => setGestionModalOpen(true)}
+                  aria-label="Gestionar horarios"
+                  className="bg-blue-600 hover:bg-blue-700 text-white w-8 h-8 rounded-xl font-bold text-[11px] border border-blue-700 shadow-md transition-all cursor-pointer flex items-center justify-center"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="w-4 h-4 text-white"
+                  >
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l-.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                  </svg>
+                </button>
                 <button type="button" onClick={() => setCurrDate(new Date(currDate.setMonth(currDate.getMonth() - 1)))} className="p-1.5 hover:bg-slate-100 rounded-lg text-xs font-bold cursor-pointer">&lt;</button>
                 <button type="button" onClick={() => setCurrDate(new Date(currDate.setMonth(currDate.getMonth() + 1)))} className="p-1.5 hover:bg-slate-100 rounded-lg text-xs font-bold cursor-pointer">&gt;</button>
               </div>
@@ -276,7 +512,8 @@ const [filtroFechaGestion, setFiltroFechaGestion] = useState('');
             <div className="grid grid-cols-7 gap-1.5">
               {daysInMonth().map((item, idx) => {
                 if (item.vacio) return <div key={idx} />;
-                const hasCitaPendiente = citas.some(c => c.fecha === item.fechaStr && (c.estado || 'pendiente').toLowerCase() === 'pendiente');
+                const hasHoraVerde = citas.some(c => c.fecha === item.fechaStr && (c.estado || '').toLowerCase() !== 'cancelada' && (c.estado || '').toLowerCase() !== 'finalizada');
+                const hasCitaPendiente = hasHoraVerde;
                 const hasCitaFinalizada = citas.some(c => c.fecha === item.fechaStr && (c.estado || '').toLowerCase() === 'finalizada');
                 const hasCita = hasCitaPendiente || hasCitaFinalizada;
                 const hasDisp = disp.some(d => d.fecha === item.fechaStr);
@@ -420,16 +657,29 @@ const [filtroFechaGestion, setFiltroFechaGestion] = useState('');
       )}
 
       {tab === 'en_linea' && (() => {
-        const coords = {
-          'Chapinero Alto, Bogotá': { lat: 4.652, lon: -74.058 },
-          'Usaquén, Bogotá': { lat: 4.695, lon: -74.031 },
-          'Teusaquillo, Bogotá': { lat: 4.638, lon: -74.084 },
-        };
         const focusPedido = (u, zoomNivel = 4.5) => {
           setPedidoEntrante(u);
-          if (coords[u.zona]) setMapPan(coords[u.zona]);
+          if (u?.coords) setMapPan(u.coords);
           setZoom(zoomNivel);
         };
+        const solicitudesConMapa = solicitudesEnLinea.map((sol) => {
+          const ubic = ubicarSolicitudEnMapa(sol);
+          const serviciosRes = resolverServiciosCliente(sol);
+          const srvTxt = serviciosRes.length
+            ? serviciosRes.map(s => s.nombre).join(', ')
+            : 'Servicio';
+          const totalNum = serviciosRes.reduce((acc, s) => acc + s.precioNum, 0);
+          return {
+            ...sol,
+            cliente: sol.clienteNombre || 'Cliente',
+            servicio: srvTxt,
+            serviciosResueltos: serviciosRes,
+            zona: sol.direccion || sol.zona || 'Bogotá',
+            valor: sol.precioTotal || (serviciosRes.length ? `$${totalNum.toLocaleString('es-CO')} COP` : 'N/A'),
+            coords: ubic.coords,
+            pin: ubic.pin
+          };
+        });
         const onTouchStart = (e) => {
           const el = e.currentTarget;
           if (e.touches.length === 2) {
@@ -552,16 +802,21 @@ const [filtroFechaGestion, setFiltroFechaGestion] = useState('');
 
                 {enLinea && (
                   <div className="absolute inset-0 z-10 pointer-events-none">
-                    {[['22%', '62%', 'w-24 h-24', '-mt-14', 'Alta demanda · Usaquén'], ['42%', '56%', 'w-28 h-28', '-mt-16', 'Alta demanda · Chapinero'], ['62%', '44%', 'w-20 h-20', '-mt-12', 'Alta demanda · Teusaquillo']].map(([top, left, sz, mt, txt], i) => (
-                      <div key={i} style={{ top, left }} className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
-                        <span className={`${sz} rounded-full bg-red-500/25 border border-red-500/60 animate-pulse`} />
-                        <span className={`${mt} bg-red-600/90 text-white text-[8px] font-black px-1.5 py-0.5 rounded-md shadow-xs uppercase`}>{txt}</span>
-                      </div>
-                    ))}
-                    {PEDIDOS.map((u, idx) => (
-                      <button key={idx} type="button" onClick={() => focusPedido(u, 4.5)} style={{ top: u.pin.top, left: u.pin.left }} className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center cursor-pointer pointer-events-auto">
-                        <span className="bg-sky-900/90 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-md shadow-xs whitespace-nowrap">{u.cliente}</span>
-                        <span className="w-3 h-3 rounded-full bg-sky-500 border border-white mt-0.5 shadow-xs" />
+                    {solicitudesConMapa.map((sol) => (
+                      <button
+                        key={sol.id}
+                        type="button"
+                        onClick={() => {
+                          focusPedido(sol, 4.5);
+                          abrirDetalleSolicitud(sol);
+                        }}
+                        style={{ top: sol.pin.top, left: sol.pin.left }}
+                        className="absolute -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center cursor-pointer pointer-events-auto animate-bounce"
+                      >
+                        <span className="bg-emerald-700 text-white text-[8px] font-black px-2 py-0.5 rounded-md shadow-md border border-white whitespace-nowrap max-w-[140px] truncate">
+                          📍 {sol.cliente} · {sol.zona}
+                        </span>
+                        <span className="w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white mt-0.5 shadow-md" />
                       </button>
                     ))}
                   </div>
@@ -571,13 +826,6 @@ const [filtroFechaGestion, setFiltroFechaGestion] = useState('');
                   <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black shadow-lg border-2 border-white ${enLinea ? 'bg-blue-700 text-white' : 'bg-slate-500 text-slate-200'}`}>✂️</div>
                   <span className={`mt-1 px-2 py-0.5 rounded-full text-[9px] font-black shadow-xs ${enLinea ? 'bg-blue-700 text-white' : 'bg-slate-600 text-slate-200'}`}>Tú</span>
                 </div>
-
-                {enLinea && (
-                  <button type="button" onClick={() => focusPedido(pedidoEntrante, 4.5)} style={{ top: pedidoEntrante.pin.top, left: pedidoEntrante.pin.left }} className="absolute -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center animate-bounce cursor-pointer">
-                    <div className="bg-blue-600 text-white px-2.5 py-1 rounded-xl text-[10px] font-black shadow-lg border border-white whitespace-nowrap">🔔 {pedidoEntrante.valor}</div>
-                    <div className="w-3.5 h-3.5 rounded-full bg-blue-700 border-2 border-white mt-0.5 shadow-md" />
-                  </button>
-                )}
               </div>
 
               <div className="absolute top-3 left-3 z-30">
@@ -593,17 +841,14 @@ const [filtroFechaGestion, setFiltroFechaGestion] = useState('');
 
               <div className="absolute bottom-3 left-3 right-3 z-30">
                 {enLinea ? (
-                  <div className="bg-white/95 backdrop-blur-md border border-sky-200 rounded-2xl p-3 shadow-xl flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5"><span className="bg-sky-100 text-blue-700 text-[9px] font-black px-2 py-0.5 rounded-md uppercase">Nuevo pedido</span><span className="text-[10px] font-bold text-slate-500">{pedidoEntrante.distancia}</span></div>
-                      <p className="text-xs font-black text-slate-900 truncate mt-1">{pedidoEntrante.cliente} · <span className="text-blue-600">{pedidoEntrante.valor}</span></p>
+                  pedidoEntrante ? (
+                    <div className="bg-white/95 backdrop-blur-md border border-sky-200 rounded-2xl p-3 shadow-xl">
+                      <p className="text-xs font-black text-slate-900 truncate">{pedidoEntrante.cliente} · <span className="text-blue-600">{pedidoEntrante.valor}</span></p>
                       <p className="text-[10px] text-slate-600 truncate">{pedidoEntrante.servicio} — {pedidoEntrante.zona}</p>
                     </div>
-                    <div className="flex gap-1.5 shrink-0">
-                      <button type="button" onClick={() => setPedidoEntrante(prev => ({ ...prev, cliente: 'Nuevo cliente', distancia: '1.5 km', valor: '$48.000 COP' }))} className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-black px-2.5 py-2 rounded-xl cursor-pointer transition">Ignorar</button>
-                      <button type="button" onClick={() => alert(`Pedido aceptado: ${pedidoEntrante.cliente} (${pedidoEntrante.valor})`)} className="bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black px-3 py-2 rounded-xl shadow-md cursor-pointer transition">Aceptar</button>
-                    </div>
-                  </div>
+                  ) : (
+                    <div className="bg-white/90 text-slate-600 rounded-2xl p-3 text-center text-[11px] font-bold border border-sky-200">Sin solicitudes activas en el mapa</div>
+                  )
                 ) : <div className="bg-slate-800/90 text-slate-200 rounded-2xl p-3 text-center text-[11px] font-bold">Enciende tu estado para recibir pedidos en el mapa</div>}
               </div>
             </div>
@@ -611,28 +856,39 @@ const [filtroFechaGestion, setFiltroFechaGestion] = useState('');
             <div className="space-y-2.5 pt-2 border-t border-slate-100">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-black text-slate-800 uppercase tracking-wide">Usuarios pidiendo servicio</p>
-                <span className="text-[10px] font-bold text-slate-500">{enLinea ? PEDIDOS.length : 0} activos</span>
+                <span className="text-[10px] font-bold text-slate-500">{enLinea ? solicitudesEnLinea.length : 0} activos</span>
               </div>
               {!enLinea ? (
                 <p className="text-xs text-slate-400 text-center py-4">Enciende el estado para ver los usuarios solicitando servicio.</p>
+              ) : solicitudesEnLinea.length === 0 ? (
+                <p className="text-xs text-slate-400 text-center py-4">No hay solicitudes pendientes dirigidas a ti.</p>
               ) : (
                 <div className="space-y-2">
-                  {PEDIDOS.map((u, i) => {
-                    const sel = pedidoEntrante.cliente === u.cliente;
+                  {solicitudesConMapa.map((sol) => {
+                    const srvTxt = sol.serviciosResueltos.length
+                      ? sol.serviciosResueltos.map(s => `${s.nombre} (${s.precio})`).join(', ')
+                      : 'Servicio';
+                    const enZona = estaEnMiZona(sol);
                     return (
-                      <div key={i} onClick={() => focusPedido(u, 4.5)} className={`p-3 rounded-2xl border flex items-center justify-between gap-3 cursor-pointer transition ${sel ? 'bg-sky-50/90 border-sky-300 shadow-2xs' : 'bg-slate-50 border-slate-200 hover:bg-slate-100/70'}`}>
+                      <div key={sol.id} onClick={() => { focusPedido(sol, 4.5); abrirDetalleSolicitud(sol); }} className="p-3 rounded-2xl border bg-slate-50 border-slate-200 hover:bg-slate-100/70 flex items-center justify-between gap-3 transition cursor-pointer">
                         <div className="min-w-0 space-y-0.5">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-black text-slate-900 truncate">{u.cliente}</span>
-                            <span className="text-[10px] font-black text-blue-600">{u.valor}</span>
-                            <span className="text-[10px] font-bold text-slate-400">· {u.distancia}</span>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-black text-slate-900 truncate">{sol.clienteNombre || 'Cliente'}</span>
+                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${enZona ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{enZona ? 'en tu Zona' : 'fuera de zona'}</span>
+                            {sol.clienteTelefono && <span className="text-[10px] font-bold text-blue-600">{sol.clienteTelefono}</span>}
+                            <span className="text-[10px] font-black text-emerald-700">{sol.valor}</span>
                           </div>
-                          <p className="text-[11px] text-slate-700 font-medium truncate">✂️ {u.servicio}</p>
-                          <p className="text-[10px] text-slate-500 truncate">📍 {u.zona}</p>
+                          <p className="text-[11px] text-slate-700 font-medium truncate">✂️ {srvTxt}</p>
+                          <p className="text-[10px] text-slate-500 truncate">📍 {sol.zona || sol.direccion || 'Sin zona'}{sol.descripcion ? ` · ${sol.descripcion}` : ''}</p>
                         </div>
-                        <button type="button" onClick={(e) => { e.stopPropagation(); setPedidoEntrante(u); alert(`Pedido aceptado: ${u.cliente} (${u.valor})`); }} className="bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black px-3 py-2 rounded-xl shrink-0 cursor-pointer transition">
-                          Aceptar
-                        </button>
+                        <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <button type="button" onClick={() => abrirConfirmarSolicitud(sol)} className="bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black px-3 py-2 rounded-xl cursor-pointer transition">
+                            Aceptar
+                          </button>
+                          <button type="button" onClick={() => handleEliminarSolicitudLista(sol.id)} className="bg-rose-100 hover:bg-rose-200 text-rose-700 text-[10px] font-black px-2.5 py-2 rounded-xl cursor-pointer transition">
+                            Eliminar
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
@@ -642,6 +898,94 @@ const [filtroFechaGestion, setFiltroFechaGestion] = useState('');
           </div>
         );
       })()}
+
+      {detalleSolicitudModal && (() => {
+        const serviciosDet = detalleSolicitudModal.serviciosResueltos || resolverServiciosCliente(detalleSolicitudModal);
+        const totalDet = serviciosDet.reduce((acc, s) => acc + s.precioNum, 0);
+        return (
+          <div className="fixed inset-0 bg-slate-950/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+            <div className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-sky-200">
+              <div className="bg-gradient-to-r from-sky-500 to-blue-600 px-5 py-4 flex items-center justify-between text-white">
+                <h3 className="font-black text-xs uppercase tracking-wider">📄 Detalles de la Solicitud</h3>
+                <button type="button" onClick={() => setDetalleSolicitudModal(null)} className="text-white/80 hover:text-white font-bold cursor-pointer">✕</button>
+              </div>
+              <div className="p-5 space-y-2.5 text-xs text-slate-700 max-h-[75vh] overflow-y-auto">
+                <p><strong>Cliente:</strong> {detalleSolicitudModal.clienteNombre || detalleSolicitudModal.nombreCliente || 'No especificado'}</p>
+                <p><strong>Teléfono:</strong> {detalleSolicitudModal.clienteTelefono || detalleSolicitudModal.telefono || 'No especificado'}</p>
+                <p><strong>Correo:</strong> {detalleSolicitudModal.email || 'No especificado'}</p>
+                <p><strong>Zona:</strong> {detalleSolicitudModal.zona || 'No especificada'}</p>
+                <p><strong>Dirección:</strong> {detalleSolicitudModal.direccion || 'No especificada'}</p>
+                <p><strong>Torre / Apto:</strong> {detalleSolicitudModal.torreApto || 'N/A'}</p>
+                <p><strong>Referencia:</strong> {detalleSolicitudModal.referencia || 'N/A'}</p>
+                <p><strong>Parqueadero Moto:</strong> {detalleSolicitudModal.parqueaderoMoto ? 'Sí' : 'No'}</p>
+                <p><strong>Estado:</strong> <span className="uppercase font-bold">{detalleSolicitudModal.estado || 'pendiente'}</span></p>
+                {detalleSolicitudModal.descripcion && (
+                  <p><strong>Descripción:</strong> {detalleSolicitudModal.descripcion}</p>
+                )}
+                <div className="pt-2 border-t border-slate-100 space-y-1.5">
+                  <p className="font-bold text-slate-900">Servicios solicitados:</p>
+                  {serviciosDet.length > 0 ? serviciosDet.map((s, i) => (
+                    <div key={i} className="flex justify-between items-center bg-sky-50/70 px-3 py-1.5 rounded-xl border border-sky-100">
+                      <span className="font-bold text-slate-800">{s.nombre}</span>
+                      <span className="font-black text-blue-600">{s.precio}</span>
+                    </div>
+                  )) : <p className="text-slate-500 italic">Servicio estándar</p>}
+                  <p className="font-black text-right text-sm text-emerald-700 pt-1">
+                    Total: {detalleSolicitudModal.precioTotal || (serviciosDet.length ? `$${totalDet.toLocaleString('es-CO')} COP` : 'N/A')}
+                  </p>
+                </div>
+                <div className="flex gap-2 pt-3">
+                  <button type="button" onClick={() => setDetalleSolicitudModal(null)} className="w-1/2 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-2xl text-xs font-bold cursor-pointer">Cerrar</button>
+                  <button type="button" onClick={() => { const solActual = detalleSolicitudModal; setDetalleSolicitudModal(null); abrirConfirmarSolicitud(solActual); }} className="w-1/2 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white py-2.5 rounded-2xl text-xs font-black cursor-pointer">Aceptar solicitud</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {confirmarSolicitudModal && (
+        <div className="fixed inset-0 bg-slate-950/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-sky-200">
+            <div className="bg-gradient-to-r from-sky-500 to-blue-600 px-5 py-4 flex items-center justify-between text-white">
+              <div className="flex items-center gap-2 bg-white/20 backdrop-blur-md px-3 py-1 rounded-2xl border border-white/30">
+                <img src="https://res.cloudinary.com/dtkirmtfq/image/upload/v1791241981/Visarka/mxmsobksbvrii384mlja.png" className="w-5 h-5 object-contain bg-white/90 rounded-md p-0.5" alt="Visarka" />
+                <span className="text-[10px] font-black tracking-widest uppercase">VISARKA</span>
+              </div>
+              <button type="button" onClick={() => setConfirmarSolicitudModal(null)} className="text-white/80 hover:text-white font-bold cursor-pointer">✕</button>
+            </div>
+            <div className="p-5 space-y-3.5 text-xs text-slate-700">
+              <p className="font-black text-sm text-slate-900">¿Estás seguro de aceptar esta cita?</p>
+              <p className="text-[11px] text-slate-600">
+                Cliente: <strong className="text-slate-900">{confirmarSolicitudModal.clienteNombre || 'Cliente'}</strong> · Llegada en 30 min
+              </p>
+              <div className="bg-sky-50/80 border border-sky-200 rounded-2xl p-3 space-y-1.5">
+                <p className="text-[10px] font-black uppercase tracking-wider text-blue-700">Servicios elegidos por el cliente:</p>
+                {serviciosAceptarSel.length > 0 ? (
+                  serviciosAceptarSel.map((s, idx) => (
+                    <div key={idx} className="flex justify-between items-center text-xs bg-white/90 px-2.5 py-1.5 rounded-xl border border-sky-100">
+                      <span className="font-bold text-slate-800">{s.nombre}</span>
+                      <span className="font-black text-blue-600">{s.precio}</span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-slate-500 italic">Servicio estándar</p>
+                )}
+                <div className="flex justify-between items-center pt-2 border-t border-sky-200/80 text-xs font-black text-slate-900">
+                  <span>Total a cobrar:</span>
+                  <span className="text-blue-700 text-sm">
+                    {serviciosAceptarSel.length > 0 ? `$${totalAceptarModal.toLocaleString('es-CO')} COP` : 'N/A'}
+                  </span>
+                </div>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button type="button" onClick={() => setConfirmarSolicitudModal(null)} className="w-1/2 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-2xl text-xs font-bold cursor-pointer transition">No, cancelar</button>
+                <button type="button" onClick={confirmarAceptarSolicitud} className="w-1/2 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white py-2.5 rounded-2xl text-xs font-black shadow-md shadow-blue-600/20 cursor-pointer transition">Sí, agendar cita</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {editarHoraModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">

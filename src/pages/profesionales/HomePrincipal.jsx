@@ -28,6 +28,15 @@ export default function HomePrincipal() {
   const isPaused = useRef(false);
   const startX = useRef(0);
 
+  const irAProfesionalesActivos = (modo) => {
+    try {
+      window.sessionStorage.setItem('visarka_modo_reserva', modo);
+      window.history.pushState({ modo }, '', '/profesionalesactivos');
+      window.dispatchEvent(new PopStateEvent('popstate', { state: { modo } }));
+    } catch (_) {}
+    window.location.assign('/profesionalesactivos');
+  };
+
   useEffect(() => {
     const t = setInterval(() => {
       if (!isPaused.current && !isDragging) setBannerActual((p) => (p === 2 ? 0 : p + 1));
@@ -149,7 +158,7 @@ export default function HomePrincipal() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => { window.location.assign('/profesionalesactivos'); }}
+                  onClick={() => irAProfesionalesActivos('inmediato')}
                   className="w-full bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-300 hover:to-teal-400 text-slate-950 font-black text-[10px] sm:text-xs py-2 sm:py-3 rounded-xl shadow-lg shadow-emerald-500/30 transition cursor-pointer active:scale-95"
                 >
                   Pedir Ya ⚡
@@ -171,7 +180,13 @@ export default function HomePrincipal() {
                   </div>
                   <span className="text-lg sm:text-2xl drop-shadow-md">🗓️</span>
                 </div>
-                <button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-[10px] sm:text-xs py-2 sm:py-3 rounded-xl shadow-lg shadow-blue-500/25 transition cursor-pointer active:scale-95">Agendar 📅</button>
+                <button
+                  type="button"
+                  onClick={() => irAProfesionalesActivos('anticipacion')}
+                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-[10px] sm:text-xs py-2 sm:py-3 rounded-xl shadow-lg shadow-blue-500/25 transition cursor-pointer active:scale-95"
+                >
+                  Agendar 📅
+                </button>
               </div>
             </div>
           </div>
