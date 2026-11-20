@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, query, where, deleteDoc, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, getDoc, query, where, deleteDoc, doc, setDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../../components/firebase';
 
 const HORAS = ['06:00 AM', '07:00 AM', '08:00 AM', '09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM', '06:00 PM', '07:00 PM', '08:00 PM', '09:00 PM', '10:00 PM', '11:00 PM'];
@@ -23,7 +23,8 @@ export default function Calendarioprofesionales({ barberoId: propId }) {
   const [serviciosDisponibles, setServiciosDisponibles] = useState([]);
   const [serviciosSeleccionadosCita, setServiciosSeleccionadosCita] = useState([]);
   const [filtroDiaSemana, setFiltroDiaSemana] = useState('');
-  const [enLinea, setEnLinea] = useState(true);
+  const [enLinea, setEnLinea] = useState(false);
+  const [modalConfirmarEncendido, setModalConfirmarEncendido] = useState(false);
   const [pedidoEntrante, setPedidoEntrante] = useState(PEDIDOS[0]);
   const [zoom, setZoom] = useState(0.9);
   const [sliderVal, setSliderVal] = useState(0);
@@ -44,6 +45,7 @@ export default function Calendarioprofesionales({ barberoId: propId }) {
   const [mapPan, setMapPan] = useState({ lat: 4.665, lon: -74.08 });
   const [gestionModalOpen, setGestionModalOpen] = useState(false);
 const horariosBoxRef = React.useRef(null);
+const switchDragRef = React.useRef({ startX: 0, moved: false, pointerId: null });
 const [filtroFechaGestion, setFiltroFechaGestion] = useState('');
 
   useEffect(() => {
@@ -52,7 +54,52 @@ const [filtroFechaGestion, setFiltroFechaGestion] = useState('');
     else { const unsub = auth.onAuthStateChanged(u => u && setBarberoId(u.uid)); return () => unsub(); }
   }, [propId]);
 
-  useEffect(() => { if (barberoId) { fetchData(); fetchServicios(); } }, [barberoId]);
+  useEffect(() => { if (barberoId) { fetchData(); fetchServicios(); fetchEstadoDomicilios(); } }, [barberoId]);
+
+  const fetchEstadoDomicilios = async () => {
+    try {
+      const snap = await getDoc(doc(db, 'profesionales', barberoId));
+      if (snap.exists() && typeof snap.data()?.activodomicilios === 'boolean') {
+        setEnLinea(snap.data().activodomicilios);
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const guardarEstadoDomicilios = async (estado) => {
+    if (!barberoId) return;
+    try {
+      const encendido = Boolean(estado);
+      await setDoc(doc(db, 'profesionales', barberoId), { activodomicilios: encendido }, { merge: true });
+      if (encendido) {
+        const profSnap = await getDoc(doc(db, 'profesionales', barberoId));
+        const profData = profSnap.exists() ? profSnap.data() : {};
+        await setDoc(doc(db, 'profesionalesactivos', barberoId), {
+          ...profData,
+          barberoId,
+          activodomicilios: true,
+          activoEnLinea: true,
+          actualizadoEn: new Date().toISOString()
+        }, { merge: true });
+      } else {
+        await deleteDoc(doc(db, 'profesionalesactivos', barberoId));
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const solicitarCambioEstado = (objetivoEncendido) => {
+    if (objetivoEncendido) {
+      if (!enLinea) setModalConfirmarEncendido(true);
+    } else {
+      setEnLinea(false);
+      guardarEstadoDomicilios(false);
+    }
+  };
+
+  const confirmarEncendidoDomicilios = async () => {
+    setModalConfirmarEncendido(false);
+    setEnLinea(true);
+    await guardarEstadoDomicilios(true);
+  };
 
   useEffect(() => {
     if (!enLinea) return;
@@ -216,7 +263,7 @@ const [filtroFechaGestion, setFiltroFechaGestion] = useState('');
     className="w-4 h-4 text-white"
   >
     <circle cx="12" cy="12" r="3" />
-    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l-.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
   </svg>
 </button>
                 <button type="button" onClick={() => setCurrDate(new Date(currDate.setMonth(currDate.getMonth() - 1)))} className="p-1.5 hover:bg-slate-100 rounded-lg text-xs font-bold cursor-pointer">&lt;</button>
@@ -451,10 +498,53 @@ const [filtroFechaGestion, setFiltroFechaGestion] = useState('');
                 <span className={`w-2.5 h-2.5 rounded-full ${enLinea ? 'bg-emerald-500 animate-ping' : 'bg-slate-400'}`} />
                 <span className={`text-xs font-black uppercase tracking-wide ${enLinea ? 'text-emerald-700 animate-pulse' : 'text-slate-500'}`}>{enLinea ? 'Buscando servicios' : 'Desconectado'}</span>
               </div>
-              <button type="button" onClick={() => setEnLinea(!enLinea)} className={`px-3.5 py-1.5 rounded-xl text-[11px] font-black transition-all cursor-pointer flex items-center gap-2 shadow-xs ${enLinea ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'}`}>
-                <span className={`w-2 h-2 rounded-full ${enLinea ? 'bg-white' : 'bg-slate-500'}`} />{enLinea ? 'Encendido' : 'Apagado'}
-              </button>
+              <div className="flex items-center gap-2 select-none">
+                <span className={`text-[10px] font-black uppercase ${enLinea ? 'text-emerald-700' : 'text-slate-500'}`}>{enLinea ? 'Encendido' : 'Apagado'}</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={enLinea}
+                  onPointerDown={(e) => {
+                    switchDragRef.current = { startX: e.clientX, moved: false, pointerId: e.pointerId };
+                    e.currentTarget.setPointerCapture(e.pointerId);
+                  }}
+                  onPointerMove={(e) => {
+                    if (switchDragRef.current.pointerId !== e.pointerId) return;
+                    const deltaX = e.clientX - switchDragRef.current.startX;
+                    if (Math.abs(deltaX) > 10) {
+                      switchDragRef.current.moved = true;
+                      solicitarCambioEstado(deltaX > 10);
+                      switchDragRef.current.pointerId = null;
+                    }
+                  }}
+                  onPointerUp={(e) => {
+                    const wasMoved = switchDragRef.current.moved;
+                    switchDragRef.current.pointerId = null;
+                    if (!wasMoved) solicitarCambioEstado(!enLinea);
+                  }}
+                  className={`w-14 h-7 rounded-full p-1 transition-all duration-300 cursor-pointer flex items-center touch-none shadow-inner ${enLinea ? 'bg-emerald-600 justify-end' : 'bg-slate-300 justify-start'}`}
+                >
+                  <span className="w-5 h-5 rounded-full bg-white shadow-md transition-transform duration-300" />
+                </button>
+              </div>
             </div>
+
+            {modalConfirmarEncendido && (
+              <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+                <div className="bg-white w-full max-w-sm rounded-3xl p-6 space-y-4 shadow-2xl border border-emerald-200">
+                  <div className="pb-2 border-b border-slate-100">
+                    <h3 className="font-black text-xs uppercase text-emerald-700">Activar servicios en línea</h3>
+                  </div>
+                  <p className="text-xs text-slate-700 leading-relaxed">
+                    ¿Estás seguro de activarte? Desde ese momento quedarás a disposición de los clientes que necesitan servicios de inmediato.
+                  </p>
+                  <div className="flex gap-2 pt-2">
+                    <button type="button" onClick={() => setModalConfirmarEncendido(false)} className="w-1/2 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-xl text-xs font-bold cursor-pointer transition">Cancelar</button>
+                    <button type="button" onClick={confirmarEncendidoDomicilios} className="w-1/2 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl text-xs font-bold cursor-pointer transition">Activar</button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} className={`${mapaFull ? 'fixed inset-0 z-50 h-screen w-screen rounded-none' : 'relative h-72 rounded-2xl'} overflow-hidden border transition-colors duration-200 select-none touch-none ${enLinea ? 'border-sky-200 bg-sky-50 shadow-md' : 'border-slate-300 bg-slate-200 grayscale opacity-75'}`}>
               <div data-map-stage className="w-full h-full origin-center will-change-transform">

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Wallet as WalletIcon, Calendar, Eye, Edit3, Trash2, Clock, User, Scissors, CheckCircle2, Percent, Layers, ChevronRight, AlertTriangle, X, Home, Edit2, EyeOff } from 'lucide-react';
 import { db, auth } from '../../components/firebase'; 
-import { collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where } from 'firebase/firestore';
+import { collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where, setDoc } from 'firebase/firestore';
 
 const MesCarruselItem = ({ mesData, setQuincenaActivaModal, anioActual, mesActual, diaActual }) => {
   const [verMontoQ1, setVerMontoQ1] = useState(false);
@@ -218,33 +218,54 @@ const Wallet = () => {
   const [timerQ1, setTimerQ1] = useState(null);
   const [timerQ2, setTimerQ2] = useState(null);
   const [domicilioToggleManual, setDomicilioToggleManual] = useState(null);
+  const [modalConfirmarDomicilioOpen, setModalConfirmarDomicilioOpen] = useState(false);
 
   const carruselRef = useRef(null);
 
-  const serviciosEnLineaBase = Boolean(
-    barberData?.serviciosEnLinea ??
-    barberData?.enLinea ??
-    barberData?.serviciosDomicilio ??
-    barberData?.domiciliosActivos ??
-    barberData?.recibiendoDomicilios ??
-    false
-  );
-  const serviciosEnLinea = domicilioToggleManual !== null ? domicilioToggleManual : serviciosEnLineaBase;
+  const serviciosEnLinea = domicilioToggleManual !== null
+    ? domicilioToggleManual
+    : Boolean(barberData?.activodomicilios);
 
-  const handleToggleDomicilio = async () => {
-    const nuevoEstado = !serviciosEnLinea;
-    setDomicilioToggleManual(nuevoEstado);
+  const actualizarEstadoDomicilioBD = async (nuevoEstado) => {
     const idProf = auth.currentUser?.uid || barberData?.id || barberData?.uid;
     if (idProf) {
       try {
         await updateDoc(doc(db, 'profesionales', idProf), {
-          serviciosEnLinea: nuevoEstado,
-          serviciosDomicilio: nuevoEstado
+          activodomicilios: Boolean(nuevoEstado)
         });
+
+        const activoRef = doc(db, 'profesionalesactivos', idProf);
+        if (nuevoEstado) {
+          await setDoc(activoRef, {
+            ...(barberData || {}),
+            profesionalId: idProf,
+            activo: true,
+            activodomicilios: true,
+            actualizadoEn: new Date().toISOString()
+          });
+        } else {
+          await deleteDoc(activoRef);
+        }
       } catch (err) {
         console.error("Error al actualizar estado de servicios a domicilio:", err);
       }
     }
+  };
+
+  const handleToggleDomicilio = async () => {
+    const nuevoEstado = !serviciosEnLinea;
+    if (nuevoEstado) {
+      setModalConfirmarDomicilioOpen(true);
+      return;
+    }
+    setDomicilioToggleManual(false);
+    await actualizarEstadoDomicilioBD(false);
+  };
+
+  const confirmarActivacionDomicilio = async () => {
+    setModalConfirmarDomicilioOpen(false);
+    setDomicilioToggleManual(true);
+    await actualizarEstadoDomicilioBD(true);
   };
 
   const handleToggleQ1 = (e) => {
@@ -445,6 +466,7 @@ const Wallet = () => {
               }
             }
             setBarberData(infoBarbero);
+            setDomicilioToggleManual(null);
             
             const porcentajeFirestore = dataBarbero.porcentaje;
             if (porcentajeFirestore !== undefined && porcentajeFirestore !== null) {
@@ -759,6 +781,35 @@ const Wallet = () => {
           />
         </button>
       </div>
+
+      {modalConfirmarDomicilioOpen && (
+        <div className="fixed inset-0 z-[99999] bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-3">
+          <div className="bg-white border border-emerald-200 rounded-3xl w-full max-w-xs p-6 space-y-4 shadow-2xl text-slate-900 text-center">
+            <div className="space-y-1">
+              <h3 className="text-sm font-black text-emerald-700 uppercase">Activar servicios a domicilio</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                ¿Estás seguro de activarte? Desde ese momento quedarás a disposición de los clientes que necesitan servicios de inmediato.
+              </p>
+            </div>
+            <div className="flex gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setModalConfirmarDomicilioOpen(false)}
+                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-2xl text-xs transition cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmarActivacionDomicilio}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2.5 rounded-2xl text-xs shadow-md transition cursor-pointer uppercase tracking-wide"
+              >
+                Activar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Manchas de colores degradadas y fluidas de fondo */}
       <div className="absolute top-[-5%] left-[-5%] w-[45vw] h-[45vw] bg-gradient-to-tr from-sky-400/20 to-teal-300/20 rounded-full blur-[90px] pointer-events-none animate-pulse"></div>

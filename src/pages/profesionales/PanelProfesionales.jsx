@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Calendar, Sparkles, CheckCircle2, Edit3, Save, RefreshCw, AlertCircle, 
   Plus, Tag, ArrowRight, AlertTriangle, 
-  Loader2, Eye, EyeOff, LogOut, X, Share2, Copy, Image as ImageIcon, Trash2, ChevronDown, FileText, Check
+  Loader2, Eye, EyeOff, LogOut, X, Share2, Copy, Image as ImageIcon, Trash2, ChevronDown, FileText, Check, Bell, Menu
 } from 'lucide-react';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { doc, updateDoc, collection, setDoc, onSnapshot, addDoc, deleteDoc, query, where, getDocs, getDoc } from 'firebase/firestore';
@@ -50,7 +50,8 @@ export default function PanelProfesionales() {
 
   const [citaSeleccionada, setCitaSeleccionada] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
-
+// 1. Pon este estado ARRIBA, dentro de tu componente PanelProfesionales:
+const [busquedaLocalidad, setBusquedaLocalidad] = useState('');
   const [nuevaFechaCita, setNuevaFechaCita] = useState('');
   const [nuevaHoraCita, setNuevaHoraCita] = useState('');
   const [nuevaHoraFinCita, setNuevaHoraFinCita] = useState('1:00 a. m.');
@@ -58,6 +59,7 @@ export default function PanelProfesionales() {
   const [nuevoServicioCita, setNuevoServicioCita] = useState('');
   const [pestanaActiva, setPestanaActiva] = useState('externos');
   const [menuAgendaAbierto, setMenuAgendaAbierto] = useState(false);
+  const [menuHamburguesaAbierto, setMenuHamburguesaAbierto] = useState(false);
   const [modalBloqueoAbierto, setModalBloqueoAbierto] = useState(false);
   const [modalNuevaCitaAbierto, setModalNuevaCitaAbierto] = useState(false);
   const [datosBloqueo, setDatosBloqueo] = useState({ 
@@ -355,8 +357,6 @@ const serviciosDisponiblesParaElegir = serviciosFirebase.filter(s => {
         setPerfilCargando(true);
         const currentUserId = userAuth.uid;
 
-       // DENTRO DEL useEffect:
-
 unsubFirestoreStatus = onSnapshot(doc(db, 'profesionales', currentUserId), async (docSnap) => {
   if (docSnap.exists()) {
     const d = docSnap.data();
@@ -372,7 +372,6 @@ unsubFirestoreStatus = onSnapshot(doc(db, 'profesionales', currentUserId), async
     setPorcentaje(d.porcentaje !== undefined && d.porcentaje !== null ? d.porcentaje : '');
     setZonasTrabajo(d.zonasTrabajo || []);
 
-    // Traer servicios del establecimiento vinculado si existe
     const establecimientoVinculadoId = d.establecimientoId || d.establecimiento;
 
     if (establecimientoVinculadoId) {
@@ -386,7 +385,6 @@ unsubFirestoreStatus = onSnapshot(doc(db, 'profesionales', currentUserId), async
           
           console.log("Servicios obtenidos directamente del documento del establecimiento:", serviciosEstablecimiento);
 
-          // Mapeamos los servicios del array para darles una estructura/ID compatible
           const serviciosFormateados = serviciosEstablecimiento.map((serv, index) => ({
             id: serv.id || `est_serv_${index}`,
             nombre: serv.nombre || serv.name || 'Servicio Establecimiento',
@@ -398,9 +396,7 @@ unsubFirestoreStatus = onSnapshot(doc(db, 'profesionales', currentUserId), async
             esDelEstablecimiento: true
           }));
 
-          // Guardamos en el estado mezclando los servicios locales con los del establecimiento
           setServiciosFirebase(prev => {
-            // Evitar duplicados si ya existen
             const locales = prev.filter(s => !s.esDelEstablecimiento);
             return [...locales, ...serviciosFormateados];
           });
@@ -738,11 +734,14 @@ const abrirModalCita = (cita) => {
         <div className="flex items-center gap-2 relative">
           <div className="relative">
             <button 
-              onClick={() => setNotificacionesAbiertas(!notificacionesAbiertas)}
+              onClick={() => {
+                setNotificacionesAbiertas(!notificacionesAbiertas);
+                setMenuHamburguesaAbierto(false);
+              }}
               className="p-2 rounded-xl bg-blue-50/80 hover:bg-blue-100 border border-blue-200 text-blue-600 cursor-pointer relative transition-all shadow-2xs flex items-center justify-center active:scale-95"
               title="Notificaciones"
             >
-              <span className="text-sm">🔔</span>
+              <Bell className="w-4 h-4" />
               {notificaciones.length > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-blue-600 to-sky-500 text-white rounded-full text-[8px] font-black flex items-center justify-center shadow-xs animate-pulse">
                   {notificaciones.length}
@@ -817,9 +816,87 @@ const abrirModalCita = (cita) => {
             )}
           </div>
 
-          <button onClick={() => setActiveTab('estadisticas')} className="p-1.5 rounded-lg bg-slate-100 border border-slate-200 text-slate-600 cursor-pointer">
-            <Sparkles className="w-3.5 h-3.5" />
-          </button>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setMenuHamburguesaAbierto(!menuHamburguesaAbierto);
+                setNotificacionesAbiertas(false);
+              }}
+              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 cursor-pointer transition-all shadow-2xs flex items-center justify-center active:scale-95"
+              title="Menú"
+            >
+              <Menu className="w-4 h-4" />
+            </button>
+
+            {menuHamburguesaAbierto && (
+              <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-2xl shadow-2xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150 text-slate-800 text-[10px] font-bold">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('perfil');
+                    setMenuHamburguesaAbierto(false);
+                  }}
+                  className="w-full px-3.5 py-2 text-left hover:bg-slate-50 flex items-center gap-2 text-slate-700 cursor-pointer"
+                >
+                  <Edit3 className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Perfil</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('comunidad');
+                    setMenuHamburguesaAbierto(false);
+                  }}
+                  className="w-full px-3.5 py-2 text-left hover:bg-slate-50 flex items-center gap-2 text-slate-700 cursor-pointer"
+                >
+                  <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  <span>Comunidad</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('servicios');
+                    setMenuHamburguesaAbierto(false);
+                  }}
+                  className="w-full px-3.5 py-2 text-left hover:bg-slate-50 flex items-center gap-2 text-slate-700 cursor-pointer"
+                >
+                  <Tag className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Servicios</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuHamburguesaAbierto(false);
+                    alert('Próximamente');
+                  }}
+                  className="w-full px-3.5 py-2 text-left hover:bg-slate-50 flex items-center gap-2 text-slate-700 cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Wallet</span>
+                </button>
+
+                <div className="border-t border-slate-100 my-1" />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuHamburguesaAbierto(false);
+                    handleCerrarSesion();
+                  }}
+                  className="w-full px-3.5 py-2 text-left hover:bg-rose-50 flex items-center gap-2 text-red-600 font-black cursor-pointer"
+                >
+                  <LogOut className="w-3.5 h-3.5 text-red-600" />
+                  <span>Cerrar sesión</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -1110,7 +1187,6 @@ const abrirModalCita = (cita) => {
           />
         </div>
 
-        {/* Sección de Servicios en Burbujas y Selector */}
         <div className="space-y-2 pt-1 border-t border-slate-100">
           <label className="font-bold text-slate-700 uppercase text-[9px] block">Servicios Seleccionados:</label>
           
@@ -1220,17 +1296,15 @@ const abrirModalCita = (cita) => {
 
             const nombresServiciosStr = listaServicios.map(s => s.nombre).join(', ');
             
-            // Cálculo del total
             const sumaTotal = listaServicios.reduce((acc, s) => acc + (s.precioNum || 0), 0);
             const totalFormateado = sumaTotal > 0 ? `$${sumaTotal.toLocaleString('es-CO')} COP` : '$0 COP';
 
-            // Obtener el ID del establecimiento vinculado si existe
             const estVinculadoId = barberData?.establecimientoId || barberData?.establecimiento || null;
 
             const nuevaCitaDoc = {
               barberoId: authUser.uid,
               barberoName: nombre,
-              establecimientoId: estVinculadoId || authUser.uid, // Guarda el ID del establecimiento para que lo visualice en su agenda
+              establecimientoId: estVinculadoId || authUser.uid,
               clienteNombre: nombreCompleto,
               telefono: datosNuevaCita.telefono || '',
               correo: datosNuevaCita.correo || '',
@@ -1743,125 +1817,503 @@ const abrirModalCita = (cita) => {
             )}
 
             {isModalOpen && (
-             <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-xs p-0 sm:p-4">
-                <div className="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                  <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-slate-50/50">
-                    <h3 className="text-xs font-black uppercase text-slate-900 flex items-center gap-1.5">
-                      <Edit3 className="w-4 h-4 text-indigo-600" /> Editar Perfil Profesional
-                    </h3>
-                    <button onClick={() => setIsModalOpen(false)} className="bg-slate-200/80 hover:bg-slate-300 p-1.5 rounded-full text-slate-700 cursor-pointer transition">
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-xs p-0 sm:p-4">
+  <div className="w-full max-w-2xl bg-white rounded-t-3xl sm:rounded-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100 bg-slate-50/50">
+      <h3 className="text-[11px] font-black uppercase text-slate-900 flex items-center gap-1.5">
+        <Edit3 className="w-3.5 h-3.5 text-indigo-600" /> Editar Perfil Profesional
+      </h3>
+      <button
+        type="button"
+        onClick={() => setIsModalOpen(false)}
+        className="bg-slate-200/80 hover:bg-slate-300 p-1 rounded-full text-slate-700 cursor-pointer transition"
+      >
+        <X className="w-3.5 h-3.5" />
+      </button>
+    </div>
 
-                  <form onSubmit={async (e) => { 
-                    e.preventDefault(); 
-                    setLoading(true); 
-                    await updateDoc(doc(db, 'profesionales', authUser.uid), { 
-                      nombre, 
-                      descripcion, 
-                      foto, 
-                      telefono, 
-                      correo: correoPerfil, 
-                      zonasTrabajo, 
-                      experiencia, 
-                      ciudad, 
-                      especialidad,
-                      porcentaje: porcentaje !== '' ? Number(porcentaje) : 0
-                    }); 
-                    setSuccessMsg('¡Perfil actualizado con éxito!'); 
-                    setLoading(false); 
-                    setIsModalOpen(false);
-                    setTimeout(() => setSuccessMsg(''), 3000); 
-                  }} className="p-5 space-y-3 overflow-y-auto text-[10px]">
-                    
-                    <div className="space-y-1">
-                      <label className="font-bold text-slate-500 uppercase text-[9px]">Nombre Completo</label>
-                      <input type="text" value={nombre} onChange={e => setNombre(e.target.value)} style={{ fontSize: '16px', transform: 'scale(0.75)', transformOrigin: 'left', width: '133.33%' }} className="bg-slate-50 border border-slate-200 rounded-xl py-1.5 px-3 text-slate-900 outline-none focus:border-indigo-600" required />
-                    </div>
+    <form
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (!authUser?.uid) return;
+        setLoading(true);
+        try {
+          await updateDoc(doc(db, 'profesionales', authUser.uid), {
+            nombre: nombre ?? '',
+            descripcion: descripcion ?? '',
+            foto: foto ?? '',
+            telefono: telefono ?? '',
+            correo: correoPerfil ?? '',
+            zonasTrabajo: Array.isArray(zonasTrabajo) ? zonasTrabajo : [],
+            experiencia: experiencia ?? '',
+            ciudad: ciudad ?? '',
+            especialidad: especialidad ?? '',
+            porcentaje: porcentaje !== '' && porcentaje !== undefined ? Number(porcentaje) : 0
+          });
+          setSuccessMsg('¡Perfil actualizado con éxito!');
+          setIsModalOpen(false);
+          setTimeout(() => setSuccessMsg(''), 3000);
+        } catch (err) {
+          console.error('Error al actualizar perfil:', err);
+        } finally {
+          setLoading(false);
+        }
+      }}
+      className="p-3.5 sm:p-4 space-y-2.5 overflow-y-auto text-[10px]"
+    >
+      {/* Fila 1: Foto + Nombre lado a lado */}
+      <div className="grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-2.5 items-center bg-slate-50/70 p-2 rounded-xl border border-slate-100">
+        <div className="flex items-center gap-2">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept="image/*"
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="w-11 h-11 rounded-full bg-slate-100 border border-slate-200 hover:border-indigo-400 flex items-center justify-center overflow-hidden shrink-0 cursor-pointer transition"
+            title="Cambiar foto de perfil"
+          >
+            {foto ? (
+              <img src={foto} alt="Perfil" className="w-full h-full object-cover" />
+            ) : (
+              <ImageIcon className="w-4 h-4 text-indigo-600" />
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="sm:hidden bg-white border border-slate-200 text-slate-700 py-1 px-2.5 rounded-lg text-[10px] font-bold cursor-pointer"
+          >
+            Cambiar foto
+          </button>
+        </div>
 
-                    <div className="space-y-1">
-                      <label className="font-bold text-slate-500 uppercase text-[9px]">Descripción / Biografía</label>
-                      <textarea rows="3" value={descripcion} onChange={e => setDescripcion(e.target.value)} placeholder="Cuéntale a tus clientes sobre tu experiencia y estilo..." style={{ fontSize: '16px', transform: 'scale(0.75)', transformOrigin: 'left', width: '133.33%' }} className="bg-slate-50 border border-slate-200 rounded-xl py-1.5 px-3 text-slate-900 outline-none focus:border-indigo-600 resize-none" />
-                    </div>
+        <div className="space-y-0.5">
+          <label className="font-bold text-slate-500 uppercase text-[8px]">Nombre Completo</label>
+          <input
+            type="text"
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+            className="w-full bg-white border border-slate-200 rounded-lg py-1 px-2.5 text-[16px] leading-tight text-slate-900 outline-none focus:border-indigo-600"
+            required
+          />
+        </div>
+      </div>
 
-                    <div className="space-y-1">
-                      <label className="font-bold text-slate-500 uppercase text-[9px]">Foto de Perfil</label>
-                      <div className="flex items-center gap-2">
-                        <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
-                        <button type="button" onClick={() => fileInputRef.current.click()} className="flex-1 bg-slate-100 border border-slate-200 text-slate-700 py-2 px-3 rounded-xl font-bold flex items-center justify-center gap-2 cursor-pointer hover:bg-slate-200 transition">
-                          <ImageIcon className="w-4 h-4 text-indigo-600" /> Seleccionar de Galería
-                        </button>
-                        {foto && <span className="text-[9px] text-emerald-600 font-bold truncate max-w-[120px]">Imagen cargada</span>}
-                      </div>
-                    </div>
+      {/* Fila 2: Biografía a la izquierda + Teléfono y Correo a la derecha */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div className="space-y-0.5 flex flex-col">
+          <label className="font-bold text-slate-500 uppercase text-[8px]">Descripción / Biografía</label>
+          <textarea
+            rows="3"
+            value={descripcion}
+            onChange={(e) => setDescripcion(e.target.value)}
+            placeholder="Cuéntale a tus clientes sobre tu experiencia y estilo..."
+            className="flex-1 w-full bg-slate-50 border border-slate-200 rounded-lg py-1 px-2.5 text-[16px] leading-tight text-slate-900 outline-none focus:border-indigo-600 resize-none"
+          />
+        </div>
 
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1">
-                        <label className="font-bold text-slate-500 uppercase text-[9px]">Teléfono / WhatsApp</label>
-                        <input type="tel" value={telefono} onChange={e => setTelefono(e.target.value)} placeholder="+57 300 0000000" style={{ fontSize: '16px', transform: 'scale(0.75)', transformOrigin: 'left', width: '133.33%' }} className="bg-slate-50 border border-slate-200 rounded-xl py-1.5 px-3 text-slate-900 outline-none focus:border-indigo-600" />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="font-bold text-slate-500 uppercase text-[9px]">Correo Electrónico (No editable)</label>
-                        <input 
-                          type="email" 
-                          value={correoPerfil} 
-                          disabled 
-                          style={{ fontSize: '16px', transform: 'scale(0.75)', transformOrigin: 'left', width: '133.33%' }} 
-                          className="bg-slate-100 border border-slate-200 rounded-xl py-1.5 px-3 text-slate-500 cursor-not-allowed shadow-none outline-none select-none" 
-                        />
-                      </div>
-                    </div>
+        <div className="space-y-1.5">
+          <div className="space-y-0.5">
+            <label className="font-bold text-slate-500 uppercase text-[8px]">Teléfono / WhatsApp</label>
+            <input
+              type="tel"
+              value={telefono}
+              onChange={(e) => setTelefono(e.target.value)}
+              placeholder="+57 300 0000000"
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg py-1 px-2.5 text-[16px] leading-tight text-slate-900 outline-none focus:border-indigo-600"
+            />
+          </div>
+          <div className="space-y-0.5">
+            <label className="font-bold text-slate-500 uppercase text-[8px]">Correo (No editable)</label>
+            <input
+              type="email"
+              value={correoPerfil}
+              disabled
+              className="w-full bg-slate-100 border border-slate-200 rounded-lg py-1 px-2.5 text-[16px] leading-tight text-slate-500 cursor-not-allowed shadow-none outline-none select-none"
+            />
+          </div>
+        </div>
+      </div>
 
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1">
-                        <label className="font-bold text-slate-500 uppercase text-[9px]">Ciudad</label>
-                        <input type="text" value={ciudad} onChange={e => setCiudad(e.target.value)} style={{ fontSize: '16px', transform: 'scale(0.75)', transformOrigin: 'left', width: '133.33%' }} className="bg-slate-50 border border-slate-200 rounded-xl py-1.5 px-3 text-slate-900 outline-none focus:border-indigo-600" />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="font-bold text-slate-500 uppercase text-[9px]">Experiencia</label>
-                        <input type="text" value={experiencia} onChange={e => setExperiencia(e.target.value)} style={{ fontSize: '16px', transform: 'scale(0.75)', transformOrigin: 'left', width: '133.33%' }} className="bg-slate-50 border border-slate-200 rounded-xl py-1.5 px-3 text-slate-900 outline-none focus:border-indigo-600" />
-                      </div>
-                    </div>
+      {/* Fila 3: Ciudad, Experiencia, Especialidad y % lado a lado */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="space-y-0.5">
+          <label className="font-bold text-slate-500 uppercase text-[8px]">Ciudad</label>
+          <input
+            type="text"
+            value={ciudad}
+            onChange={(e) => setCiudad(e.target.value)}
+            className="w-full bg-slate-50 border border-slate-200 rounded-lg py-1 px-2 text-[16px] leading-tight text-slate-900 outline-none focus:border-indigo-600"
+          />
+        </div>
+        <div className="space-y-0.5">
+          <label className="font-bold text-slate-500 uppercase text-[8px]">Experiencia</label>
+          <input
+            type="text"
+            value={experiencia}
+            onChange={(e) => setExperiencia(e.target.value)}
+            className="w-full bg-slate-50 border border-slate-200 rounded-lg py-1 px-2 text-[16px] leading-tight text-slate-900 outline-none focus:border-indigo-600"
+          />
+        </div>
+        <div className="space-y-0.5">
+          <label className="font-bold text-slate-500 uppercase text-[8px]">Especialidad</label>
+          <input
+            type="text"
+            value={especialidad}
+            onChange={(e) => setEspecialidad(e.target.value)}
+            className="w-full bg-slate-50 border border-slate-200 rounded-lg py-1 px-2 text-[16px] leading-tight text-slate-900 outline-none focus:border-indigo-600"
+          />
+        </div>
+        <div className="space-y-0.5">
+          <label className="font-bold text-slate-500 uppercase text-[8px]">Porcentaje (%)</label>
+          <input
+            type="number"
+            value={porcentaje}
+            onChange={(e) => setPorcentaje(e.target.value)}
+            placeholder="0"
+            className="w-full bg-slate-50 border border-slate-200 rounded-lg py-1 px-2 text-[16px] leading-tight text-slate-900 outline-none focus:border-indigo-600"
+          />
+        </div>
+      </div>
 
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1">
-                        <label className="font-bold text-slate-500 uppercase text-[9px]">Especialidad</label>
-                        <input type="text" value={especialidad} onChange={e => setEspecialidad(e.target.value)} style={{ fontSize: '16px', transform: 'scale(0.75)', transformOrigin: 'left', width: '133.33%' }} className="bg-slate-50 border border-slate-200 rounded-xl py-1.5 px-3 text-slate-900 outline-none focus:border-indigo-600" />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="font-bold text-slate-500 uppercase text-[9px]">Porcentaje (%)</label>
-                        <input type="number" value={porcentaje} onChange={e => setPorcentaje(e.target.value)} placeholder="0" style={{ fontSize: '16px', transform: 'scale(0.75)', transformOrigin: 'left', width: '133.33%' }} className="bg-slate-50 border border-slate-200 rounded-xl py-1.5 px-3 text-slate-900 outline-none focus:border-indigo-600" />
-                      </div>
-                    </div>
+      {/* Mapa Realista de Bogotá D.C. y Soacha con Buscador, Localidades, Barrios/Sectores y Avenidas */}
+      <div className="space-y-1 pt-0.5">
+        <div className="flex items-center justify-between">
+          <label className="font-bold text-slate-500 uppercase text-[8px]">
+            Zonas de Bogotá y Soacha ({zonasTrabajo?.length || 0} seleccionadas)
+          </label>
+          {zonasTrabajo?.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setZonasTrabajo([])}
+              className="text-[8px] font-bold text-rose-600 hover:underline cursor-pointer"
+            >
+              Limpiar selección
+            </button>
+          )}
+        </div>
 
-                    <div className="space-y-1.5 pt-1">
-                      <label className="font-bold text-slate-500 uppercase text-[9px]">Zonas de Bogotá donde trabajas</label>
-                      <div className="flex flex-wrap gap-1.5 bg-slate-50 border border-slate-200 p-2.5 rounded-xl max-h-32 overflow-y-auto">
-                        {zonasBogotaDisponibles.map((zona) => {
-                          const seleccionada = zonasTrabajo?.includes(zona);
-                          return (
-                            <button
-                              key={zona}
-                              type="button"
-                              onClick={() => toggleZona(zona)}
-                              className={`px-2.5 py-1 rounded-lg text-[9px] font-bold cursor-pointer transition ${
-                                seleccionada ? 'bg-indigo-600 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
-                              }`}
-                            >
-                              {zona}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
+        {(() => {
+          const zonasBogotaYSoacha = [
+            { nombre: 'Suba', grupo: 'Bogotá', sectores: ['Colina Campestre', 'Niza', 'Tibabuyes'], d: 'M 146 22 Q 178 16 212 34 L 234 62 Q 228 88 218 106 L 188 122 L 144 114 Q 124 98 112 82 Q 114 54 126 36 Z', lx: 174, ly: 72 },
+            { nombre: 'Usaquén', grupo: 'Bogotá', sectores: ['Cedritos', 'Unicentro', 'Santa Bárbara'], d: 'M 212 34 Q 256 44 294 74 Q 308 94 296 114 L 256 118 L 218 106 Q 228 88 234 62 Z', lx: 260, ly: 82 },
+            { nombre: 'Engativá', grupo: 'Bogotá', sectores: ['Normandía', 'Quirigua', 'Álamos'], d: 'M 112 114 L 144 114 L 188 122 L 184 154 L 134 154 Q 116 146 102 138 Z', lx: 146, ly: 136 },
+            { nombre: 'Barrios Unidos', grupo: 'Bogotá', sectores: ['Doce de Octubre', 'Metrópolis', 'La Castellana'], d: 'M 188 122 L 234 118 L 232 148 L 184 154 Z', lx: 210, ly: 137 },
+            { nombre: 'Chapinero', grupo: 'Bogotá', sectores: ['Chicó', 'Zona T', 'Rosales', 'Quinta Camacho'], d: 'M 234 118 L 296 114 Q 316 130 322 148 L 310 168 L 250 164 L 232 148 Z', lx: 276, ly: 142 },
+            { nombre: 'Fontibón', grupo: 'Bogotá', sectores: ['Modelia', 'Hayuelos', 'Aeropuerto'], d: 'M 62 146 Q 82 140 102 138 L 134 154 L 130 184 L 74 184 Q 56 174 48 160 Z', lx: 92, ly: 164 },
+            { nombre: 'Teusaquillo', grupo: 'Bogotá', sectores: ['Galerías', 'Park Way', 'Salitre'], d: 'M 184 154 L 232 148 L 250 164 L 242 188 L 184 186 Z', lx: 214, ly: 169 },
+            { nombre: 'Santa Fe', grupo: 'Bogotá', sectores: ['La Macarena', 'Las Nieves', 'Centro Internacional'], d: 'M 250 164 L 310 168 Q 328 180 334 196 L 314 214 L 270 202 L 242 188 Z', lx: 288, ly: 186 },
+            { nombre: 'Los Mártires', grupo: 'Bogotá', sectores: ['Ricaurte', 'Paloquemao', 'San Victorino'], d: 'M 232 186 L 260 188 L 258 208 L 230 208 Z', lx: 245, ly: 198 },
+            { nombre: 'La Candelaria', grupo: 'Bogotá', sectores: ['Centro Histórico', 'Egipto'], d: 'M 260 188 L 282 194 L 280 212 L 258 208 Z', lx: 270, ly: 201 },
+            { nombre: 'Puente Aranda', grupo: 'Bogotá', sectores: ['Galán', 'Muzu', 'Alquería'], d: 'M 184 186 L 232 186 L 230 222 L 180 220 Z', lx: 206, ly: 204 },
+            { nombre: 'Antonio Nariño', grupo: 'Bogotá', sectores: ['Restrepo', 'Ciudad Jardín'], d: 'M 230 208 L 260 208 L 258 230 L 228 228 Z', lx: 244, ly: 219 },
+            { nombre: 'Kennedy', grupo: 'Bogotá', sectores: ['Tintal', 'Castilla', 'Timiza'], d: 'M 74 184 L 130 184 L 180 186 L 180 234 L 114 238 Q 84 228 62 214 Z', lx: 124, ly: 212 },
+            { nombre: 'Bosa', grupo: 'Bogotá', sectores: ['Bosa Centro', 'Porvenir'], d: 'M 38 220 Q 50 216 62 214 L 114 238 L 108 270 L 48 266 Q 34 252 30 236 Z', lx: 72, ly: 246 },
+            { nombre: 'Tunjuelito', grupo: 'Bogotá', sectores: ['Venecia', 'San Carlos'], d: 'M 172 234 L 208 234 L 206 262 L 170 260 Z', lx: 189, ly: 248 },
+            { nombre: 'Rafael Uribe Uribe', grupo: 'Bogotá', sectores: ['Quiroga', 'Olaya', 'Marco Fidel Suárez'], d: 'M 208 222 L 258 230 L 254 268 L 206 262 Z', lx: 232, ly: 246 },
+            { nombre: 'San Cristóbal', grupo: 'Bogotá', sectores: ['20 de Julio', 'Velódromo'], d: 'M 258 208 L 314 214 Q 332 228 338 246 L 320 274 L 254 268 Z', lx: 296, ly: 242 },
+            { nombre: 'Ciudad Bolívar', grupo: 'Bogotá', sectores: ['Lucero', 'El Mochuelo'], d: 'M 108 270 L 170 260 L 206 262 L 194 332 L 134 326 Q 114 310 102 292 Z', lx: 152, ly: 298 },
+            { nombre: 'Usme', grupo: 'Bogotá', sectores: ['Usme Centro', 'Yomasa'], d: 'M 206 262 L 254 268 L 320 274 Q 334 296 330 318 L 284 356 L 194 332 Z', lx: 262, ly: 312 },
+            { nombre: 'Sumapaz', grupo: 'Bogotá', sectores: ['Nazareth', 'San Juan'], d: 'M 134 326 L 194 332 L 284 356 L 272 442 Q 248 468 218 476 Q 182 472 160 458 L 132 396 Z', lx: 212, ly: 404 },
+            { nombre: 'Comuna 3 La Despensa', grupo: 'Soacha', sectores: ['Terreros', 'León XIII'], d: 'M 48 266 L 108 270 L 104 294 L 46 290 Z', lx: 76, ly: 280 },
+            { nombre: 'Comuna 2 Soacha Central', grupo: 'Soacha', sectores: ['Centro Soacha', 'El Silo'], d: 'M 46 290 L 104 294 L 102 318 L 44 314 Z', lx: 73, ly: 306 },
+            { nombre: 'Comuna 1 Compartir', grupo: 'Soacha', sectores: ['Compartir', 'Indumil'], d: 'M 26 286 L 46 290 L 44 326 L 22 322 Z', lx: 34, ly: 306 },
+            { nombre: 'Comuna 6 San Humberto', grupo: 'Soacha', sectores: ['San Humberto', 'Bosques de Soacha'], d: 'M 44 314 L 102 318 L 106 340 L 46 336 Z', lx: 75, ly: 328 },
+            { nombre: 'Comuna 5 San Mateo', grupo: 'Soacha', sectores: ['San Mateo', 'Ciudad Verde'], d: 'M 22 322 L 44 326 L 46 352 L 20 348 Z', lx: 33, ly: 338 },
+            { nombre: 'Comuna 4 Cazucá', grupo: 'Soacha', sectores: ['Cazucá', 'Ciudadela Sucre'], d: 'M 102 294 L 134 326 L 106 340 L 102 318 Z', lx: 115, ly: 318 },
+            { nombre: 'Correg. 1 Soacha', grupo: 'Soacha', sectores: ['Bosatama', 'Cascajal'], d: 'M 16 264 L 48 266 L 46 290 L 18 286 Z', lx: 32, ly: 277 },
+            { nombre: 'Correg. 2 Soacha', grupo: 'Soacha', sectores: ['Charquira', 'Romeral'], d: 'M 46 336 L 106 340 L 132 384 L 54 374 Z', lx: 88, ly: 358 }
+          ];
 
-                    <button type="submit" disabled={loading} className="w-full bg-indigo-600 text-white font-bold py-2.5 rounded-xl text-xs uppercase flex items-center justify-center gap-2 cursor-pointer hover:bg-indigo-700 transition mt-3">
-                      {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-3.5 h-3.5" /> Guardar Cambios</>}
-                    </button>
-                  </form>
-                </div>
+          const avenidasPrincipales = [
+            { nombre: 'Autopista Norte', d: 'M 230 38 L 234 118', x: 239, y: 74, rot: -82 },
+            { nombre: 'Av. Caracas', d: 'M 234 118 L 244 186 L 236 254', x: 243, y: 152, rot: -80 },
+            { nombre: 'Av. Suba', d: 'M 140 48 L 206 114', x: 160, y: 72, rot: 45 },
+            { nombre: 'Av. Boyacá', d: 'M 176 26 L 164 154 L 152 270', x: 166, y: 108, rot: -86 },
+            { nombre: 'Av. NQS', d: 'M 216 120 L 202 222', x: 202, y: 180, rot: -82 },
+            { nombre: 'Av. El Dorado (Cll 26)', d: 'M 68 170 L 264 180', x: 108, y: 169, rot: 3 },
+            { nombre: 'Av. Calle 80', d: 'M 100 138 L 234 132', x: 124, y: 132, rot: -2 },
+            { nombre: 'Av. 1º de Mayo', d: 'M 84 220 L 246 234', x: 110, y: 219, rot: 5 },
+            { nombre: 'Autopista Sur / Soacha', d: 'M 56 242 L 176 258 L 96 312 L 32 316', x: 74, y: 274, rot: -24 },
+            { nombre: 'Av. Terreros', d: 'M 48 286 L 104 290', x: 56, y: 285, rot: 3 }
+          ];
+
+          const termino = (busquedaLocalidad || '').trim().toLowerCase();
+          const zonasFiltradas = termino
+            ? zonasBogotaYSoacha.filter(
+                (z) =>
+                  z.nombre.toLowerCase().includes(termino) ||
+                  z.grupo.toLowerCase().includes(termino) ||
+                  z.sectores.some((s) => s.toLowerCase().includes(termino))
+              )
+            : zonasBogotaYSoacha;
+
+          const sectoresCoincidentes = termino
+            ? zonasBogotaYSoacha.flatMap((z) =>
+                z.sectores
+                  .filter((s) => s.toLowerCase().includes(termino))
+                  .map((s) => ({ sector: s, localidad: z.nombre }))
+              )
+            : [];
+
+          return (
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-2 space-y-2">
+              <div className="relative flex items-center">
+                <input
+                  type="text"
+                  value={busquedaLocalidad}
+                  onChange={(e) => setBusquedaLocalidad(e.target.value)}
+                  placeholder="Buscar localidad, comuna o sector (ej: Cedritos, Suba, Soacha)..."
+                  className="w-full bg-white border border-slate-200 focus:border-indigo-600 rounded-lg py-1 pl-2.5 pr-7 text-[16px] leading-tight text-slate-800 outline-none transition"
+                />
+                {busquedaLocalidad && (
+                  <button
+                    type="button"
+                    onClick={() => setBusquedaLocalidad('')}
+                    className="absolute right-2 text-slate-400 hover:text-slate-700 font-bold text-[10px] cursor-pointer"
+                    title="Borrar búsqueda"
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
+
+              {sectoresCoincidentes.length > 0 && (
+                <div className="flex flex-wrap gap-1 bg-indigo-50/70 border border-indigo-200/80 p-1.5 rounded-lg">
+                  <span className="w-full text-[8px] font-bold text-indigo-800 uppercase">
+                    Sectores encontrados:
+                  </span>
+                  {sectoresCoincidentes.map(({ sector, localidad }) => {
+                    const activa = zonasTrabajo?.includes(localidad);
+                    return (
+                      <button
+                        key={`${sector}-${localidad}`}
+                        type="button"
+                        onClick={() => toggleZona(localidad)}
+                        className={`px-1.5 py-0.5 rounded text-[8px] font-bold cursor-pointer transition ${
+                          activa
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-white border border-indigo-200 text-indigo-900 hover:bg-indigo-100'
+                        }`}
+                      >
+                        {sector} <span className="opacity-75 font-normal">({localidad})</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="flex items-center justify-between text-[8px] text-slate-500 px-0.5">
+                <div className="flex items-center gap-2.5">
+                  <span className="inline-flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-xs bg-indigo-600 inline-block" /> Seleccionada
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-xs bg-white border border-slate-300 inline-block" /> Bogotá
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-xs bg-emerald-50/90 border border-emerald-300 inline-block" /> Soacha
+                  </span>
+                </div>
+                <span className="font-bold text-amber-700">━ Vías</span>
+              </div>
+
+              <div className="relative w-full bg-sky-50/40 border border-slate-200 rounded-lg overflow-hidden">
+                <svg
+                  viewBox="10 12 336 472"
+                  className="w-full h-72 sm:h-80 select-none"
+                  role="img"
+                  aria-label="Mapa realista de Bogotá D.C. y Soacha con localidades, comunas y avenidas principales"
+                >
+                  <defs>
+                    <pattern id="tramaUrbana" width="12" height="12" patternUnits="userSpaceOnUse">
+                      <path d="M 12 0 L 0 0 0 12" fill="none" stroke="#cbd5e1" strokeWidth="0.35" opacity="0.45" />
+                    </pattern>
+                    <linearGradient id="cerrosOrientales" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#dcfce7" stopOpacity="0.1" />
+                      <stop offset="100%" stopColor="#86efac" stopOpacity="0.55" />
+                    </linearGradient>
+                  </defs>
+
+                  <path
+                    d="M 112 18 Q 92 84 68 146 Q 42 208 24 272 Q 16 324 38 378"
+                    fill="none"
+                    stroke="#38bdf8"
+                    strokeWidth="3.2"
+                    strokeLinecap="round"
+                    opacity="0.55"
+                  />
+                  <text x="20" y="195" fill="#0284c7" fontSize="5.2" fontWeight="700" transform="rotate(-74, 20, 195)" opacity="0.8">
+                    Río Bogotá
+                  </text>
+
+                  {zonasBogotaYSoacha.map((zona) => {
+                    const seleccionada = zonasTrabajo?.includes(zona.nombre);
+                    const coincideBusqueda = !termino || zonasFiltradas.some((z) => z.nombre === zona.nombre);
+                    const baseFill = zona.grupo === 'Soacha' ? '#ecfdf5' : '#ffffff';
+                    const baseStroke = seleccionada
+                      ? '#312e81'
+                      : termino && coincideBusqueda
+                        ? '#4f46e5'
+                        : zona.grupo === 'Soacha'
+                          ? '#6ee7b7'
+                          : '#94a3b8';
+
+                    return (
+                      <g
+                        key={zona.nombre}
+                        onClick={() => toggleZona(zona.nombre)}
+                        className={`cursor-pointer transition-opacity ${
+                          termino && !coincideBusqueda && !seleccionada ? 'opacity-35' : 'opacity-100'
+                        }`}
+                      >
+                        <path
+                          d={zona.d}
+                          fill={seleccionada ? '#4f46e5' : termino && coincideBusqueda ? '#eef2ff' : baseFill}
+                          stroke={baseStroke}
+                          strokeWidth={termino && coincideBusqueda ? '2.1' : zona.grupo === 'Soacha' ? '1.25' : '1.5'}
+                          strokeLinejoin="round"
+                          className="transition-colors duration-150"
+                        />
+                        {!seleccionada && (
+                          <path
+                            d={zona.d}
+                            fill="url(#tramaUrbana)"
+                            className="pointer-events-none"
+                          />
+                        )}
+                      </g>
+                    );
+                  })}
+
+                  <path
+                    d="M 294 74 Q 318 112 332 164 Q 342 212 336 266 Q 326 306 304 338 L 288 326 Q 316 284 320 226 Q 318 158 286 92 Z"
+                    fill="url(#cerrosOrientales)"
+                    className="pointer-events-none"
+                  />
+
+                  <g className="pointer-events-none">
+                    {avenidasPrincipales.map((av) => (
+                      <g key={av.nombre}>
+                        <path
+                          d={av.d}
+                          fill="none"
+                          stroke="#ffffff"
+                          strokeWidth="3.2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          opacity="0.9"
+                        />
+                        <path
+                          d={av.d}
+                          fill="none"
+                          stroke="#f59e0b"
+                          strokeWidth="1.9"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          opacity="0.92"
+                        />
+                        <text
+                          x={av.x}
+                          y={av.y}
+                          fill="#b45309"
+                          fontSize="5.2"
+                          fontWeight="800"
+                          transform={`rotate(${av.rot}, ${av.x}, ${av.y})`}
+                        >
+                          {av.nombre}
+                        </text>
+                      </g>
+                    ))}
+                  </g>
+
+                  {zonasBogotaYSoacha.map((zona) => {
+                    const seleccionada = zonasTrabajo?.includes(zona.nombre);
+                    const coincideBusqueda = !termino || zonasFiltradas.some((z) => z.nombre === zona.nombre);
+                    const anchoEtiqueta = Math.max(26, zona.nombre.length * 3.8);
+
+                    return (
+                      <g
+                        key={`label-${zona.nombre}`}
+                        onClick={() => toggleZona(zona.nombre)}
+                        className={`cursor-pointer transition-opacity ${
+                          termino && !coincideBusqueda && !seleccionada ? 'opacity-40' : 'opacity-100'
+                        }`}
+                      >
+                        <rect
+                          x={zona.lx - anchoEtiqueta / 2}
+                          y={zona.ly - 4.4}
+                          width={anchoEtiqueta}
+                          height="8.8"
+                          rx="2.5"
+                          fill={seleccionada ? '#312e81' : termino && coincideBusqueda ? '#e0e7ff' : 'rgba(255,255,255,0.92)'}
+                          stroke={seleccionada ? '#a5b4fc' : termino && coincideBusqueda ? '#4f46e5' : zona.grupo === 'Soacha' ? '#34d399' : '#cbd5e1'}
+                          strokeWidth={termino && coincideBusqueda ? '0.9' : '0.55'}
+                        />
+                        <text
+                          x={zona.lx}
+                          y={zona.ly + 0.3}
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                          fill={seleccionada ? '#ffffff' : termino && coincideBusqueda ? '#312e81' : '#0f172a'}
+                          fontSize="5.4"
+                          fontWeight="800"
+                        >
+                          {zona.nombre}
+                        </text>
+                      </g>
+                    );
+                  })}
+                </svg>
+              </div>
+
+              <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto pr-1">
+                {zonasFiltradas.length === 0 ? (
+                  <p className="w-full text-center text-slate-400 italic py-1.5 text-[9px]">
+                    No se encontraron zonas con "{busquedaLocalidad}".
+                  </p>
+                ) : (
+                  zonasFiltradas.map((zona) => {
+                    const seleccionada = zonasTrabajo?.includes(zona.nombre);
+                    return (
+                      <button
+                        key={zona.nombre}
+                        type="button"
+                        onClick={() => toggleZona(zona.nombre)}
+                        className={`px-1.5 py-0.5 rounded text-[8px] font-bold cursor-pointer transition ${
+                          seleccionada
+                            ? 'bg-indigo-600 text-white shadow-xs'
+                            : zona.grupo === 'Soacha'
+                              ? 'bg-emerald-50/80 border border-emerald-200 text-emerald-800 hover:bg-emerald-100/70'
+                              : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        {zona.nombre}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+
+      <button
+        type="submit"
+        disabled={loading}
+        className="w-full bg-indigo-600 text-white font-bold py-2 rounded-xl text-[11px] uppercase flex items-center justify-center gap-1.5 cursor-pointer hover:bg-indigo-700 transition mt-2"
+      >
+        {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Save className="w-3.5 h-3.5" /> Guardar Cambios</>}
+      </button>
+    </form>
+  </div>
+</div>
             )}
           </div>
         )}
@@ -1876,47 +2328,12 @@ const abrirModalCita = (cita) => {
           <span className="text-[9px] uppercase">Agenda</span>
         </button>
 
-        <button
-          type="button"
-          onClick={() => setActiveTab('comunidad')}
-          className={`flex flex-col items-center justify-center flex-1 py-1 transition-colors cursor-pointer ${activeTab === 'comunidad' ? 'text-emerald-600 font-bold' : 'text-slate-500 hover:text-slate-800'}`}
-        >
-          <svg className="w-4 h-4 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-          </svg>
-          <span className="text-[9px] uppercase">Comunidad</span>
-        </button>
-
-        <button 
-          onClick={() => setActiveTab('servicios')}
-          className={`flex flex-col items-center justify-center flex-1 py-1 transition-colors cursor-pointer ${activeTab === 'servicios' ? 'text-indigo-600 font-bold' : 'text-slate-500 hover:text-slate-800'}`}
-        >
-          <Tag className="w-4 h-4 mb-1" />
-          <span className="text-[9px] uppercase">Servicios</span>
-        </button>
-
         <button 
           onClick={() => setActiveTab('facturacion')}
           className={`flex flex-col items-center justify-center flex-1 py-1 transition-colors cursor-pointer ${activeTab === 'facturacion' ? 'text-indigo-600 font-bold' : 'text-slate-500 hover:text-slate-800'}`}
         >
           <FileText className="w-4 h-4 mb-1" />
           <span className="text-[9px] uppercase">Finanzas</span>
-        </button>
-
-        <button 
-          onClick={() => setActiveTab('perfil')}
-          className={`flex flex-col items-center justify-center flex-1 py-1 transition-colors cursor-pointer ${activeTab === 'perfil' ? 'text-indigo-600 font-bold' : 'text-slate-500 hover:text-slate-800'}`}
-        >
-          <Edit3 className="w-4 h-4 mb-1" />
-          <span className="text-[9px] uppercase">Perfil</span>
-        </button>
-
-        <button 
-          onClick={handleCerrarSesion}
-          className="flex flex-col items-center justify-center flex-1 py-1 transition-colors cursor-pointer text-red-600 hover:text-red-700"
-        >
-          <LogOut className="w-4 h-4 mb-1 text-red-600" />
-          <span className="text-[9px] uppercase font-bold">Salir</span>
         </button>
       </nav>
 
@@ -2246,16 +2663,15 @@ const serviciosDisponiblesParaElegir = serviciosFirebase.filter(s => {
         fecha: nuevaFechaCita,
         fechaStr: nuevaFechaCita,
         hora: nuevaHoraCita,
-        servicios: serviciosModalCita,       // Usado por el panel de establecimientos
-        serviciosArray: serviciosModalCita,   // Usado por el panel profesional
+        servicios: serviciosModalCita,
+        serviciosArray: serviciosModalCita,
         servicio: nombresServicios || 'Servicio General',
-        precioTotal: totalCalculado,        // Formato texto (ej: "$230.000 COP")
-        monto: totalCalculado               // Formato alternativo que suelen leer los establecimientos
+        precioTotal: totalCalculado,
+        monto: totalCalculado
       };
 
       await updateDoc(citaRef, payloadCitaActualizada);
       
-      // Actualizamos el estado local de inmediato
       setCitasFirestore(prev => 
         prev.map(c => ((c.id || c.uid) === citaSeleccionada.id ? { ...c, ...payloadCitaActualizada } : c))
       );

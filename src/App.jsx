@@ -11,7 +11,7 @@ import HomePrincipal from './pages/profesionales/HomePrincipal.jsx';
 import LoginProfesionales from './pages/profesionales/LoginProfesionales.jsx';
 import CalendarioBarberos from './pages/calendariobarberos/CalendarioBarberos.jsx';
 import BarberBookingView from './pages/profesionales/BarberBookingView.jsx'
-
+import ProfesionalesActivos from './pages/profesionales/vistaclientes/ProfesionalesActivos.jsx';
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -94,6 +94,9 @@ export default function App() {
           <Route path="/bookings" element={<div className="text-center py-20">Sección de Reservas</div>} />
           <Route path="/profile" element={<div className="text-center py-20">Sección de Perfil / Cliente</div>} />
           <Route path="/register" element={<div className="text-center py-20">Sección de Registro</div>} />
+      <Route path="/profesionalesactivos" element={<ProfesionalesActivos />} />
+     
+       
         </Routes>
       </main>
     </div>

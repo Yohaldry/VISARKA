@@ -147,7 +147,13 @@ export default function HomePrincipal() {
                   </div>
                   <span className="text-lg sm:text-2xl drop-shadow-md">🛵</span>
                 </div>
-                <button className="w-full bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-300 hover:to-teal-400 text-slate-950 font-black text-[10px] sm:text-xs py-2 sm:py-3 rounded-xl shadow-lg shadow-emerald-500/30 transition cursor-pointer active:scale-95">Pedir Ya ⚡</button>
+                <button
+                  type="button"
+                  onClick={() => { window.location.assign('/profesionalesactivos'); }}
+                  className="w-full bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-300 hover:to-teal-400 text-slate-950 font-black text-[10px] sm:text-xs py-2 sm:py-3 rounded-xl shadow-lg shadow-emerald-500/30 transition cursor-pointer active:scale-95"
+                >
+                  Pedir Ya ⚡
+                </button>
               </div>
             </div>
 
