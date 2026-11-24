@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiStar, FiMapPin, FiCalendar, FiArrowRight, FiX, FiCheck } from 'react-icons/fi';
@@ -23,6 +23,8 @@ export default function BarberBookingView({ onBookingComplete }) {
   const [detalleCita, setDetalleCita] = useState(null);
   const [currDate, setCurrDate] = useState(new Date());
   const [form, setForm] = useState({ nombre: '', apellido: '', email: '', telefono: '', direccion: '', referencia: '', torreApto: '', parqueaderoMoto: false });
+  const [submitting, setSubmitting] = useState(false);
+  const bookingInFlightRef = useRef(false);
 
   useEffect(() => {
     if (!barberoId) return;
@@ -82,7 +84,10 @@ export default function BarberBookingView({ onBookingComplete }) {
 
   const handleBooking = async (e) => {
     e.preventDefault();
+    if (bookingInFlightRef.current || submitting) return;
     if (!selectedServices.length || !form.nombre || !form.email || !form.telefono || !form.direccion) return alert("Completa los campos obligatorios.");
+    bookingInFlightRef.current = true;
+    setSubmitting(true);
     try {
       const clienteNombreCompleto = `${form.nombre} ${form.apellido}`;
       const bookingData = { 
@@ -101,7 +106,12 @@ export default function BarberBookingView({ onBookingComplete }) {
       ]);
       setDetalleCita(bookingData); setModalType('success');
       if (onBookingComplete) onBookingComplete(bookingData);
-    } catch (err) { alert("Error al procesar el agendamiento."); }
+    } catch (err) {
+      alert("Error al procesar el agendamiento.");
+    } finally {
+      bookingInFlightRef.current = false;
+      setSubmitting(false);
+    }
   };
 
   const daysInMonth = () => {
@@ -298,7 +308,7 @@ export default function BarberBookingView({ onBookingComplete }) {
                     <input type="checkbox" checked={form.parqueaderoMoto} onChange={e => setForm({...form, parqueaderoMoto: e.target.checked})} className="w-4 h-4 accent-indigo-600 rounded" /> 
                     ¿Hay parqueadero para la moto?
                   </label>
-                  <button type="submit" className="w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white font-black py-3.5 rounded-2xl uppercase tracking-wider shadow-lg shadow-indigo-500/25 mt-2">Confirmar Cita</button>
+                  <button type="submit" disabled={submitting} className="w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 disabled:opacity-50 text-white font-black py-3.5 rounded-2xl uppercase tracking-wider shadow-lg shadow-indigo-500/25 mt-2">{submitting ? 'Confirmando...' : 'Confirmar Cita'}</button>
                 </form>
               )}
 

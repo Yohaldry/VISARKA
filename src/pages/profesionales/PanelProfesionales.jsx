@@ -709,7 +709,7 @@ const abrirModalCita = (cita) => {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-mono flex flex-col justify-between pb-36 relative select-none">
-      <header className="w-full bg-white border-b border-slate-200 px-3 py-2.5 flex items-center justify-between sticky top-0 z-40 shadow-xs">
+      <header className="fixed top-0 left-0 right-0 w-full bg-white border-b border-slate-200 px-3 py-2.5 flex items-center justify-between z-40 shadow-xs">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg overflow-hidden bg-white border border-blue-200 flex items-center justify-center shadow-sm p-1">
             <img 

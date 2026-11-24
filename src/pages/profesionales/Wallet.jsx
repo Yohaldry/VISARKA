@@ -51,8 +51,15 @@ const MesCarruselItem = ({ mesData, setQuincenaActivaModal, anioActual, mesActua
                 <stop offset="0%" stopColor={mesData.q1.enCurso ? '#d97706' : mesData.q1.sinMovimiento ? '#e11d48' : '#059669'} stopOpacity="0.4" />
                 <stop offset="100%" stopColor={mesData.q1.enCurso ? '#d97706' : mesData.q1.sinMovimiento ? '#e11d48' : '#059669'} stopOpacity="0.0" />
               </linearGradient>
+              <linearGradient id={`dom-line-${mesData.q1.id}`} x1="0" y1="0" x2="100%" y2="0">
+                <stop offset="0%" stopColor="#0f172a" />
+                <stop offset="100%" stopColor="#ffffff" />
+              </linearGradient>
             </defs>
             {mesData.q1.grafico?.areaD && <path d={mesData.q1.grafico.areaD} fill={`url(#grad-${mesData.q1.id})`} />}
+            {mesData.q1.grafico?.domicilioPathD && (
+              <path d={mesData.q1.grafico.domicilioPathD} fill="none" stroke={`url(#dom-line-${mesData.q1.id})`} strokeWidth="1.6" strokeDasharray="2.5,2" strokeLinecap="round" strokeLinejoin="round" />
+            )}
             {mesData.q1.grafico?.pathD && <path d={mesData.q1.grafico.pathD} fill="none" stroke={mesData.q1.enCurso ? '#d97706' : mesData.q1.sinMovimiento ? '#e11d48' : '#059669'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />}
             {mesData.q1.grafico?.puntos?.map((pt, i) => (
               <circle key={i} cx={pt.x} cy={pt.y} r={pt.monto > 0 ? 3 : 1} className={pt.monto > 0 ? (mesData.q1.enCurso ? 'fill-amber-600 ring-1 ring-amber-200' : 'fill-emerald-600 ring-1 ring-emerald-200') : 'fill-slate-400/30'} />
@@ -99,8 +106,15 @@ const MesCarruselItem = ({ mesData, setQuincenaActivaModal, anioActual, mesActua
                 <stop offset="0%" stopColor={mesData.q2.enCurso ? '#d97706' : mesData.q2.sinMovimiento ? '#e11d48' : '#059669'} stopOpacity="0.4" />
                 <stop offset="100%" stopColor={mesData.q2.enCurso ? '#d97706' : mesData.q2.sinMovimiento ? '#e11d48' : '#059669'} stopOpacity="0.0" />
               </linearGradient>
+              <linearGradient id={`dom-line-${mesData.q2.id}`} x1="0" y1="0" x2="100%" y2="0">
+                <stop offset="0%" stopColor="#0f172a" />
+                <stop offset="100%" stopColor="#ffffff" />
+              </linearGradient>
             </defs>
             {mesData.q2.grafico?.areaD && <path d={mesData.q2.grafico.areaD} fill={`url(#grad-${mesData.q2.id})`} />}
+            {mesData.q2.grafico?.domicilioPathD && (
+              <path d={mesData.q2.grafico.domicilioPathD} fill="none" stroke={`url(#dom-line-${mesData.q2.id})`} strokeWidth="1.6" strokeDasharray="2.5,2" strokeLinecap="round" strokeLinejoin="round" />
+            )}
             {mesData.q2.grafico?.pathD && <path d={mesData.q2.grafico.pathD} fill="none" stroke={mesData.q2.enCurso ? '#d97706' : mesData.q2.sinMovimiento ? '#e11d48' : '#059669'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />}
             {mesData.q2.grafico?.puntos?.map((pt, i) => (
               <circle key={i} cx={pt.x} cy={pt.y} r={pt.monto > 0 ? 3 : 1} className={pt.monto > 0 ? (mesData.q2.enCurso ? 'fill-amber-600 ring-1 ring-amber-200' : 'fill-emerald-600 ring-1 ring-emerald-200') : 'fill-slate-400/30'} />
@@ -135,6 +149,7 @@ const Wallet = () => {
   const vistaTab = 'manual';
 
   const [filtroTiempo, setFiltroTiempo] = useState('dia');
+  const [modoMontoGrafico, setModoMontoGrafico] = useState('producido');
   
   const obtenerFechaLocal = () => {
     const d = new Date();
@@ -540,6 +555,13 @@ const Wallet = () => {
     return parseFloat(limpio) || 0;
   };
 
+  const formatearNombresServicios = (srv) => {
+    if (Array.isArray(srv)) {
+      return srv.map(item => (typeof item === 'object' ? (item.nombre || item.name || 'Servicio') : String(item))).join(', ');
+    }
+    return srv || 'Servicio a Domicilio';
+  };
+
   const handleGuardarServicio = async (e) => {
     e.preventDefault();
     if (!nuevoServicio.cliente || !nuevoServicio.total) return;
@@ -696,18 +718,26 @@ const Wallet = () => {
     });
   };
 
-  const citasComoServicios = (citasEstablecimiento || []).map(c => ({
-    id: c.id,
-    cliente: c.clienteNombre,
-    servicio: c.servicio,
-    total: c.precioTotal,
-    ganancias: c.valorComision,
-    porcentajeValor: c.comisionPorcentaje,
-    fecha: c.fecha,
-    hora: c.hora || '00:00',
-    estado: c.estado,
-    esDeEstablecimiento: true
-  }));
+  const citasComoServicios = (citasEstablecimiento || [])
+    .filter(c => {
+      const est = (c.estado || '').toLowerCase().trim();
+      return est !== 'cancelada' && est !== 'cancelado';
+    })
+    .map(c => {
+      const montoCobrado = parsearPrecioCita(c);
+      return {
+        id: c.id,
+        cliente: c.clienteNombre || c.nombreCliente || 'Cliente Domicilio',
+        servicio: formatearNombresServicios(c.servicio || c.servicios),
+        total: montoCobrado,
+        ganancias: montoCobrado,
+        porcentajeValor: 100,
+        fecha: c.fecha,
+        hora: c.hora || '00:00',
+        estado: c.estado,
+        esDomicilio: true
+      };
+    });
 
   const todosLosIngresos = [...servicios, ...citasComoServicios];
   const serviciosFiltrados = filtrarServiciosPorTiempo(todosLosIngresos);
@@ -866,7 +896,7 @@ const Wallet = () => {
 </div>
 
       {vistaTab === 'manual' && (() => {
-        const obtenerDatosDiario = (diaInicio, diaFin) => {
+        const obtenerDatosDiario = (diaInicio, diaFin, anioRef = anioActual, mesRef = mesActual) => {
           const dias = [];
           for (let d = diaInicio; d <= diaFin; d++) {
             const serviciosDia = todosLosIngresos.filter(s => {
@@ -893,7 +923,7 @@ const Wallet = () => {
                 }
               }
 
-              return dS === d && mS === mesActual && aS === anioActual;
+              return dS === d && mS === mesRef && aS === anioRef;
             });
 
             const totalDia = serviciosDia.reduce((acc, curr) => {
@@ -903,7 +933,42 @@ const Wallet = () => {
               return acc + val;
             }, 0);
 
-            dias.push({ dia: d, monto: totalDia, serviciosCount: serviciosDia.length });
+            const domicilioDia = serviciosDia
+              .filter(curr => curr.esDomicilio)
+              .reduce((acc, curr) => {
+                const val = (curr.ganancias !== undefined && !isNaN(Number(curr.ganancias))) 
+                  ? Number(curr.ganancias) 
+                  : (Number(curr.total) || Number(curr.precio) || Number(curr.valor) || 0);
+                return acc + val;
+              }, 0);
+
+            const tieneDomicilioFinalizado = (citasFinalizadas || []).some(c => {
+              const rawFecha = c.fecha || c.date || c.createdAt || c.created_at;
+              if (!rawFecha) return false;
+
+              let dC = 0, mC = -1, aC = 0;
+              if (typeof rawFecha === 'string') {
+                const limpia = rawFecha.split('T')[0];
+                if (limpia.includes('-')) {
+                  const partes = limpia.split('-');
+                  aC = parseInt(partes[0], 10);
+                  mC = parseInt(partes[1], 10) - 1;
+                  dC = parseInt(partes[2], 10);
+                }
+              }
+              if (dC === 0) {
+                const fechaObj = new Date(rawFecha);
+                if (!isNaN(fechaObj.getTime())) {
+                  aC = fechaObj.getFullYear();
+                  mC = fechaObj.getMonth();
+                  dC = fechaObj.getDate();
+                }
+              }
+
+              return dC === d && mC === mesRef && aC === anioRef;
+            });
+
+            dias.push({ dia: d, monto: totalDia, domicilioMonto: domicilioDia, serviciosCount: serviciosDia.length, tieneDomicilioFinalizado });
           }
           return dias;
         };
@@ -917,8 +982,8 @@ const Wallet = () => {
         const totalRealQ2 = datosQ2.reduce((acc, curr) => acc + curr.monto, 0);
         const totalServiciosQ2 = datosQ2.reduce((acc, curr) => acc + curr.serviciosCount, 0);
 
-        const generarPathYCoordenadas = (datos, width = 120, height = 26) => {
-          const max = Math.max(...datos.map(d => d.monto), 1);
+        const generarPathYCoordenadas = (datos, width = 120, height = 26, maxExterno = null) => {
+          const max = maxExterno || Math.max(...datos.map(d => Math.max(d.monto, d.domicilioMonto || 0)), 1);
           
           const puntos = datos.map((item, idx) => {
             const x = datos.length > 1 ? (idx / (datos.length - 1)) * width : width / 2;
@@ -926,10 +991,18 @@ const Wallet = () => {
             return { x, y, ...item };
           });
 
+          const domicilioPuntos = datos.map((item, idx) => {
+            const domVal = item.domicilioMonto || 0;
+            const x = datos.length > 1 ? (idx / (datos.length - 1)) * width : width / 2;
+            const y = domVal === 0 ? height - 4 : height - (domVal / max) * (height - 10) - 5;
+            return { x, y, monto: domVal, dia: item.dia };
+          });
+
           const pathD = puntos.reduce((acc, pt, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${pt.x} ${pt.y}`, '');
           const areaD = `${pathD} L ${width} ${height} L 0 ${height} Z`;
+          const domicilioPathD = domicilioPuntos.reduce((acc, pt, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${pt.x} ${pt.y}`, '');
           
-          return { puntos, pathD, areaD, max };
+          return { puntos, pathD, areaD, domicilioPuntos, domicilioPathD, max };
         };
 
         const q1Grafico = generarPathYCoordenadas(datosQ1);
@@ -976,65 +1049,14 @@ const Wallet = () => {
         const nombreMesMayus = nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1);
         const ultimoDia = new Date(anioQ, mesQ + 1, 0).getDate();
 
-        const obtenerDatosQuincenaEspecifica = (diaInicio, diaFin) => {
-          const dias = [];
-          for (let dia = diaInicio; dia <= diaFin; dia++) {
-            const serviciosDia = todosLosIngresos.filter(s => {
-              const rawFecha = s.fecha || s.date || s.createdAt || s.created_at;
-              if (!rawFecha) return false;
-              let dS = 0, mS = -1, aS = 0;
-              if (typeof rawFecha === 'string') {
-                const limpia = rawFecha.split('T')[0];
-                if (limpia.includes('-')) {
-                  const partes = limpia.split('-');
-                  aS = parseInt(partes[0], 10);
-                  mS = parseInt(partes[1], 10) - 1;
-                  dS = parseInt(partes[2], 10);
-                }
-              }
-              if (dS === 0) {
-                const fechaObj = new Date(rawFecha);
-                if (!isNaN(fechaObj.getTime())) {
-                  aS = fechaObj.getFullYear();
-                  mS = fechaObj.getMonth();
-                  dS = fechaObj.getDate();
-                }
-              }
-              return dS === dia && mS === mesQ && aS === anioQ;
-            });
-
-            const totalDia = serviciosDia.reduce((acc, curr) => {
-              const val = (curr.ganancias !== undefined && !isNaN(Number(curr.ganancias))) 
-                ? Number(curr.ganancias) 
-                : (Number(curr.total) || Number(curr.precio) || Number(curr.valor) || 0);
-              return acc + val;
-            }, 0);
-
-            dias.push({ dia, monto: totalDia, serviciosCount: serviciosDia.length });
-          }
-          return dias;
-        };
-
-        const generarGraficoQuincena = (datos) => {
-          const max = Math.max(...datos.map(d => d.monto), 1);
-          const puntos = datos.map((item, idx) => {
-            const x = datos.length > 1 ? (idx / (datos.length - 1)) * 120 : 60;
-            const y = item.monto === 0 ? 21 : 26 - (item.monto / max) * 16 - 5;
-            return { x, y, ...item };
-          });
-          const pathD = puntos.reduce((acc, pt, idx) => `${acc} ${idx === 0 ? 'M' : 'L'} ${pt.x} ${pt.y}`, '');
-          const areaD = `${pathD} L 120 26 L 0 26 Z`;
-          return { puntos, pathD, areaD };
-        };
-
         // 1ra Quincena (Izquierda)
-        const datosQ1Mes = obtenerDatosQuincenaEspecifica(1, 15);
+        const datosQ1Mes = obtenerDatosDiario(1, 15, anioQ, mesQ);
         const totalQ1Mes = datosQ1Mes.reduce((acc, curr) => acc + curr.monto, 0);
         const servQ1Mes = datosQ1Mes.reduce((acc, curr) => acc + curr.serviciosCount, 0);
         const esQ1EnCurso = (anioQ === anioActual && mesQ === mesActual && diaActual <= 15);
 
         // 2da Quincena (Derecha)
-        const datosQ2Mes = obtenerDatosQuincenaEspecifica(16, ultimoDia);
+        const datosQ2Mes = obtenerDatosDiario(16, ultimoDia, anioQ, mesQ);
         const totalQ2Mes = datosQ2Mes.reduce((acc, curr) => acc + curr.monto, 0);
         const servQ2Mes = datosQ2Mes.reduce((acc, curr) => acc + curr.serviciosCount, 0);
         const esQ2EnCurso = (anioQ === anioActual && mesQ === mesActual && diaActual > 15);
@@ -1048,7 +1070,7 @@ const Wallet = () => {
             datos: datosQ1Mes,
             total: totalQ1Mes,
             serv: servQ1Mes,
-            grafico: generarGraficoQuincena(datosQ1Mes),
+            grafico: generarPathYCoordenadas(datosQ1Mes),
             enCurso: esQ1EnCurso,
             sinMovimiento: totalQ1Mes === 0 && !esQ1EnCurso
           },
@@ -1058,7 +1080,7 @@ const Wallet = () => {
             datos: datosQ2Mes,
             total: totalQ2Mes,
             serv: servQ2Mes,
-            grafico: generarGraficoQuincena(datosQ2Mes),
+            grafico: generarPathYCoordenadas(datosQ2Mes),
             enCurso: esQ2EnCurso,
             sinMovimiento: totalQ2Mes === 0 && !esQ2EnCurso
           }
@@ -1080,7 +1102,6 @@ const Wallet = () => {
 </div>
 
             {quincenaActivaModal && (() => {
-              const modalGrafico = generarPathYCoordenadas(quincenaActivaModal.datos, 300, 100);
               const hoy = new Date();
               const diaActual = hoy.getDate();
               const mesActualSistema = hoy.getMonth();
@@ -1090,6 +1111,25 @@ const Wallet = () => {
                 typeof metaDiaria !== 'undefined' ? metaDiaria : 
                 (typeof barberData !== 'undefined' && barberData?.metaDiaria !== undefined ? barberData.metaDiaria : 0)
               ) || 0;
+
+              const totalProducidoQ = quincenaActivaModal.datos.reduce((acc, d) => acc + (Number(d.monto) || 0), 0);
+              const totalDomicilioQ = quincenaActivaModal.datos.reduce((acc, d) => acc + (Number(d.domicilioMonto) || 0), 0);
+              const totalAmbosQ = totalProducidoQ + totalDomicilioQ;
+
+              const montoSeleccionado =
+                modoMontoGrafico === 'domicilio'
+                  ? totalDomicilioQ
+                  : modoMontoGrafico === 'ambos'
+                    ? totalAmbosQ
+                    : totalProducidoQ;
+
+              const maxMontoGrafico = Math.max(
+                ...quincenaActivaModal.datos.map(p => Math.max(p.monto, p.domicilioMonto || 0)),
+                valorMeta,
+                10000
+              );
+              const modalGrafico = generarPathYCoordenadas(quincenaActivaModal.datos, 300, 100, maxMontoGrafico);
+              const totalDomicilioQuincena = quincenaActivaModal.datos.reduce((acc, d) => acc + (d.domicilioMonto || 0), 0);
 
               return (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-4 animate-fadeIn">
@@ -1113,10 +1153,19 @@ const Wallet = () => {
                     </div>
 
                     <div className="p-6 overflow-y-auto space-y-5 flex-grow">
-                      <div className="flex justify-between items-center bg-gradient-to-r from-sky-50 to-blue-50 p-4 rounded-2xl border border-sky-100 shadow-inner">
-                        <div>
-                          <p className="text-xs text-slate-500 font-medium">Total Producido</p>
-                          <p className="text-xl font-extrabold text-blue-600">${quincenaActivaModal.total.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                      <div className="flex justify-between items-center gap-2 bg-gradient-to-r from-sky-50 to-blue-50 p-4 rounded-2xl border border-sky-100 shadow-inner">
+                        <div className="space-y-1">
+                          <select
+                            aria-label="Seleccionar tipo de monto de la quincena"
+                            value={modoMontoGrafico}
+                            onChange={(e) => setModoMontoGrafico(e.target.value)}
+                            className="bg-white border border-sky-200 text-slate-700 text-xs font-bold rounded-xl px-2.5 py-1 focus:outline-none focus:border-blue-500 cursor-pointer shadow-2xs"
+                          >
+                            <option value="producido">Total Producido</option>
+                            <option value="domicilio">Total Domicilio</option>
+                            <option value="ambos">Total Producido + Domicilio</option>
+                          </select>
+                          <p className="text-xl font-extrabold text-blue-600">${montoSeleccionado.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
                         </div>
                         <div className="text-right">
                           <p className="text-xs text-slate-500 font-medium">Total Servicios</p>
@@ -1167,76 +1216,94 @@ const Wallet = () => {
                         );
                       })()}
 
-                      <div className="h-32 w-full pt-4 relative bg-slate-50/60 p-3 rounded-2xl border border-slate-100">
-                        {(() => {
-                          const tieneMeta = valorMeta > 0;
-                          const maxMontoGrafico = Math.max(...modalGrafico.puntos.map(p => p.monto), valorMeta, 10000);
-                          const svgHeight = 100;
-                          const yMeta = svgHeight - (valorMeta / maxMontoGrafico) * (svgHeight - 15) - 10;
+                      <div className="bg-slate-50/60 p-3 rounded-2xl border border-slate-100 space-y-2">
+                        <div className="flex items-center justify-between text-[10px] font-bold px-1">
+                          <span className="flex items-center gap-1.5 text-sky-700">
+                            <span className="w-3 h-0.5 bg-sky-400 inline-block rounded-full"></span> Ingresos Wallet
+                          </span>
+                          <span className="flex items-center gap-1.5 text-slate-700">
+                            <span className="w-3 h-0.5 border-t-2 border-dashed border-slate-700 inline-block"></span> Domicilios: ${totalDomicilioQuincena.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="h-28 w-full pt-2 relative">
+                          {(() => {
+                            const tieneMeta = valorMeta > 0;
+                            const svgHeight = 100;
+                            const yMeta = svgHeight - (valorMeta / maxMontoGrafico) * (svgHeight - 15) - 10;
 
-                          return (
-                            <svg viewBox="0 0 300 100" className="w-full h-full overflow-visible">
-                              <defs>
-                                <linearGradient id="modalGrad" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.4" />
-                                  <stop offset="100%" stopColor="#38bdf8" stopOpacity="0.0" />
-                                </linearGradient>
-                              </defs>
+                            return (
+                              <svg viewBox="0 0 300 100" className="w-full h-full overflow-visible">
+                                <defs>
+                                  <linearGradient id="modalGrad" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.4" />
+                                    <stop offset="100%" stopColor="#38bdf8" stopOpacity="0.0" />
+                                  </linearGradient>
+                                  <linearGradient id="domicilioLineaGrad" x1="0" y1="0" x2="100%" y2="0">
+                                    <stop offset="0%" stopColor="#0f172a" />
+                                    <stop offset="100%" stopColor="#ffffff" />
+                                  </linearGradient>
+                                </defs>
 
-                              {tieneMeta && (
-                                <g>
-                                  <line 
-                                    x1="0" 
-                                    y1={yMeta} 
-                                    x2="300" 
-                                    y2={yMeta} 
-                                    stroke="#10b981" 
-                                    strokeWidth="1.5" 
-                                    strokeDasharray="3,3" 
-                                  />
-                                  <foreignObject x="210" y={yMeta - 40} width="100" height="18" className="overflow-visible">
-                                    <div className="bg-black text-white text-[8px] font-black px-1.5 py-0.5 rounded-full shadow-xs text-center border border-emerald-400 whitespace-nowrap">
-                                      🎯 Meta: ${valorMeta.toLocaleString()}
-                                    </div>
-                                  </foreignObject>
-                                </g>
-                              )}
-
-                              <path d={modalGrafico.areaD} fill="url(#modalGrad)" />
-                              <path d={modalGrafico.pathD} fill="none" stroke="#38bdf8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                              
-                              {modalGrafico.puntos.map((pt, i) => {
-                                const itemDia = quincenaActivaModal.datos[i];
-                                const esDiaPasado = itemDia && (
-                                  anioActual < anioActualSistema || 
-                                  (anioActual === anioActualSistema && mesActual < mesActualSistema) || 
-                                  (anioActual === anioActualSistema && mesActual === mesActualSistema && itemDia.dia < diaActual)
-                                );
-                                const esDescansoPt = itemDia && itemDia.monto === 0 && esDiaPasado;
-                                const superaMeta = tieneMeta && itemDia && itemDia.monto >= valorMeta;
-
-                                return (
-                                  <g key={i}>
-                                    <circle 
-                                      cx={pt.x} 
-                                      cy={pt.y} 
-                                      r={pt.monto > 0 ? 5 : (esDescansoPt ? 4 : 2)} 
-                                      className={
-                                        superaMeta 
-                                          ? 'fill-emerald-500 ring-4 ring-emerald-500/20' 
-                                          : pt.monto > 0 
-                                            ? 'fill-cyan-400 ring-4 ring-cyan-500/20' 
-                                            : esDescansoPt 
-                                              ? 'fill-amber-500 ring-4 ring-amber-500/20' 
-                                              : 'fill-slate-600'
-                                      } 
+                                {tieneMeta && (
+                                  <g>
+                                    <line 
+                                      x1="0" 
+                                      y1={yMeta} 
+                                      x2="300" 
+                                      y2={yMeta} 
+                                      stroke="#10b981" 
+                                      strokeWidth="1.5" 
+                                      strokeDasharray="3,3" 
                                     />
+                                    <foreignObject x="210" y={yMeta - 40} width="100" height="18" className="overflow-visible">
+                                      <div className="bg-black text-white text-[8px] font-black px-1.5 py-0.5 rounded-full shadow-xs text-center border border-emerald-400 whitespace-nowrap">
+                                        🎯 Meta: ${valorMeta.toLocaleString()}
+                                      </div>
+                                    </foreignObject>
                                   </g>
-                                );
-                              })}
-                            </svg>
-                          );
-                        })()}
+                                )}
+
+                                <path d={modalGrafico.areaD} fill="url(#modalGrad)" />
+                                <path d={modalGrafico.pathD} fill="none" stroke="#38bdf8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                                <path d={modalGrafico.domicilioPathD} fill="none" stroke="url(#domicilioLineaGrad)" strokeWidth="2.2" strokeDasharray="4,3" strokeLinecap="round" strokeLinejoin="round" />
+                                
+                                {modalGrafico.domicilioPuntos?.map((dpt, i) => dpt.monto > 0 && (
+                                  <circle key={`dom-${i}`} cx={dpt.x} cy={dpt.y} r="3.5" className="fill-slate-800 ring-2 ring-slate-300" />
+                                ))}
+
+                                {modalGrafico.puntos.map((pt, i) => {
+                                  const itemDia = quincenaActivaModal.datos[i];
+                                  const esDiaPasado = itemDia && (
+                                    anioActual < anioActualSistema || 
+                                    (anioActual === anioActualSistema && mesActual < mesActualSistema) || 
+                                    (anioActual === anioActualSistema && mesActual === mesActualSistema && itemDia.dia < diaActual)
+                                  );
+                                  const esDescansoPt = itemDia && itemDia.monto === 0 && esDiaPasado;
+                                  const superaMeta = tieneMeta && itemDia && itemDia.monto >= valorMeta;
+
+                                  return (
+                                    <g key={i}>
+                                      <circle 
+                                        cx={pt.x} 
+                                        cy={pt.y} 
+                                        r={pt.monto > 0 ? 5 : (esDescansoPt ? 4 : 2)} 
+                                        className={
+                                          superaMeta 
+                                            ? 'fill-emerald-500 ring-4 ring-emerald-500/20' 
+                                            : pt.monto > 0 
+                                              ? 'fill-cyan-400 ring-4 ring-cyan-500/20' 
+                                              : esDescansoPt 
+                                                ? 'fill-amber-500 ring-4 ring-amber-500/20' 
+                                                : 'fill-slate-600'
+                                        } 
+                                      />
+                                    </g>
+                                  );
+                                })}
+                              </svg>
+                            );
+                          })()}
+                        </div>
                       </div>
 
                       <div>
@@ -1269,16 +1336,15 @@ const Wallet = () => {
                                 }`}
                               >
                                 <span className="flex items-center gap-2">
-                                  <span className={`w-2 h-2 rounded-full ${
-                                    cumpleMeta
-                                      ? 'bg-emerald-500'
-                                      : item.monto > 0 
-                                        ? 'bg-blue-600' 
-                                        : esDescanso 
-                                          ? 'bg-amber-500' 
-                                          : 'bg-slate-300'
-                                  }`}></span>
+                                  {item.tieneDomicilioFinalizado && (
+                                    <span className="w-2.5 h-2.5 rounded-full bg-slate-800 inline-block shrink-0"></span>
+                                  )}
                                   <span>Día {item.dia}</span>
+                                  {item.domicilioMonto > 0 && (
+                                    <span className="text-[9px] bg-slate-800 text-white font-bold px-1.5 py-0.5 rounded-md">
+                                      Domi
+                                    </span>
+                                  )}
                                   {cumpleMeta && (
                                     <span className="text-[9px] bg-emerald-100 text-emerald-800 font-black px-1.5 py-0.2 rounded-md">
                                       🌟 ¡Meta cumplida!
@@ -1386,27 +1452,27 @@ const Wallet = () => {
                               serviciosDelDia.map((srv, i) => {
                                 const gananciaServicio = Number(srv.ganancias) || Number(srv.total) || 0;
                                 const totalServicio = Number(srv.total) || 0;
-                                const esAutomatico = Boolean(srv.esDeEstablecimiento);
+                                const esDomicilioSrv = Boolean(srv.esDomicilio);
 
                                 return (
                                   <div 
                                     key={i} 
                                     className={`border p-3.5 rounded-2xl space-y-2 transition-all ${
-                                      esAutomatico 
-                                        ? 'bg-emerald-50/40 border-emerald-300 hover:border-emerald-500' 
+                                      esDomicilioSrv 
+                                        ? 'bg-slate-800 border-slate-700 text-white hover:border-slate-500' 
                                         : 'bg-slate-50 border-slate-200 hover:border-blue-400'       
                                     }`}
                                   >
                                     <div className="flex justify-between items-start">
                                       <div>
                                         <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
-                                          <span className={`text-xs font-bold block ${esAutomatico ? 'text-emerald-950' : 'text-blue-900'}`}>
+                                          <span className={`text-xs font-bold block ${esDomicilioSrv ? 'text-white' : 'text-blue-900'}`}>
                                             {srv.servicio || 'Servicio sin nombre'}
                                           </span>
                                           
-                                          {esAutomatico ? (
-                                            <span className="bg-emerald-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider shadow-2xs">
-                                              Automático 🏢
+                                          {esDomicilioSrv ? (
+                                            <span className="bg-slate-600 text-slate-100 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider shadow-2xs">
+                                              Domicilio 🛵
                                             </span>
                                           ) : (
                                             <span className="bg-blue-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider shadow-2xs">
@@ -1414,18 +1480,18 @@ const Wallet = () => {
                                             </span>
                                           )}
                                         </div>
-                                        <span className="text-xs text-slate-600 font-medium">Cliente: {srv.cliente || 'General'}</span>
+                                        <span className={`text-xs font-medium ${esDomicilioSrv ? 'text-slate-300' : 'text-slate-600'}`}>Cliente: {srv.cliente || 'General'}</span>
                                       </div>
 
                                       <div className="text-right">
-                                        <span className={`text-xs font-extrabold block ${esAutomatico ? 'text-emerald-700' : 'text-blue-600'}`}>
+                                        <span className={`text-xs font-extrabold block ${esDomicilioSrv ? 'text-white' : 'text-blue-600'}`}>
                                           +${gananciaServicio.toLocaleString()}
                                         </span>
-                                        <span className="text-[10px] text-slate-400">Total: ${totalServicio.toLocaleString()}</span>
+                                        <span className={`text-[10px] ${esDomicilioSrv ? 'text-slate-300' : 'text-slate-400'}`}>Total: ${totalServicio.toLocaleString()}</span>
                                       </div>
                                     </div>
 
-                                    <div className="flex justify-between items-center text-[10px] text-slate-500 border-t border-slate-200/60 pt-2 font-mono">
+                                    <div className={`flex justify-between items-center text-[10px] border-t pt-2 font-mono ${esDomicilioSrv ? 'text-slate-300 border-slate-700' : 'text-slate-500 border-slate-200/60'}`}>
                                       <span>Hora: {srv.hora || 'N/A'}</span>
                                       {srv.porcentajeValor && <span>Comisión: {srv.porcentajeValor}%</span>}
                                     </div>
@@ -1880,10 +1946,11 @@ const Wallet = () => {
                   return fechaB - fechaA;
                 })
                 .map((srv, index) => {
+                  const esDomicilio = Boolean(srv.esDomicilio);
                   const estadoActual = (srv.estado || srv.estadoPago || 'pagado').toLowerCase().trim();
-                  const esPendiente = estadoActual === 'pendiente';
-                  const esPagado = estadoActual === 'pagado';
-                  const esConfirmado = estadoActual === 'confirmado';
+                  const esPendiente = !esDomicilio && estadoActual === 'pendiente';
+                  const esPagado = !esDomicilio && estadoActual === 'pagado';
+                  const esConfirmado = !esDomicilio && estadoActual === 'confirmado';
 
                   const totalServicio = esPendiente ? 0 : (Number(srv.precioTotal) || Number(srv.total) || 0);
                   const gananciaServicio = esPendiente ? 0 : (Number(srv.valorComision) || Number(srv.ganancias) || (totalServicio * Number(srv.porcentajeValor || srv.comisionPorcentaje || 35)) / 100);
@@ -1892,30 +1959,40 @@ const Wallet = () => {
                     <div 
                       key={srv.id || index}
                       className={`p-3.5 flex items-center justify-between transition-colors group ${
-                        esPendiente 
-                          ? 'bg-amber-50/60 border-l-4 border-l-amber-400' 
-                          : esConfirmado
-                            ? 'bg-emerald-50/70 border-l-4 border-l-emerald-500'
-                            : esPagado
-                              ? 'bg-sky-50/60 border-l-4 border-l-sky-500'
-                              : 'hover:bg-slate-50'
+                        esDomicilio
+                          ? 'bg-slate-800 text-white border-l-4 border-l-slate-500 hover:bg-slate-700/90'
+                          : esPendiente 
+                            ? 'bg-amber-50/60 border-l-4 border-l-amber-400' 
+                            : esConfirmado
+                              ? 'bg-emerald-50/70 border-l-4 border-l-emerald-500'
+                              : esPagado
+                                ? 'bg-sky-50/60 border-l-4 border-l-sky-500'
+                                : 'hover:bg-slate-50'
                       }`}
                     >
                       <div className="flex items-center gap-3">
                         <div className={`p-2.5 rounded-2xl flex-shrink-0 border shadow-xs ${
-                          esPendiente
-                            ? 'bg-amber-100 text-amber-700 border-amber-300'
-                            : esConfirmado
-                              ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
-                              : 'bg-sky-100 text-sky-700 border-sky-300'
+                          esDomicilio
+                            ? 'bg-slate-700 text-slate-100 border-slate-600'
+                            : esPendiente
+                              ? 'bg-amber-100 text-amber-700 border-amber-300'
+                              : esConfirmado
+                                ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
+                                : 'bg-sky-100 text-sky-700 border-sky-300'
                         }`}>
-                          <Calendar size={16} />
+                          {esDomicilio ? <Home size={16} /> : <Calendar size={16} />}
                         </div>
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-xs font-extrabold text-slate-900">{srv.clienteNombre || srv.cliente || 'General'}</p>
+                            <p className={`text-xs font-extrabold ${esDomicilio ? 'text-white' : 'text-slate-900'}`}>
+                              {srv.clienteNombre || srv.cliente || 'General'}
+                            </p>
                             
-                            {esPendiente ? (
+                            {esDomicilio ? (
+                              <span className="bg-slate-600 text-slate-100 text-[8px] font-black px-2 py-0.5 rounded-full uppercase shadow-2xs">
+                                Domicilio • {estadoActual || 'activo'}
+                              </span>
+                            ) : esPendiente ? (
                               <span className="bg-amber-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase shadow-2xs">
                                 Pendiente 🟡
                               </span>
@@ -1930,13 +2007,13 @@ const Wallet = () => {
                             )}
                           </div>
 
-                          <p className="text-[10px] text-slate-600 font-medium mt-0.5">
-                            Servicio: <span className={`font-bold ${esPendiente ? 'text-amber-800' : esConfirmado ? 'text-emerald-800' : 'text-blue-800'}`}>
+                          <p className={`text-[10px] font-medium mt-0.5 ${esDomicilio ? 'text-slate-300' : 'text-slate-600'}`}>
+                            Servicio: <span className={`font-bold ${esDomicilio ? 'text-slate-100' : esPendiente ? 'text-amber-800' : esConfirmado ? 'text-emerald-800' : 'text-blue-800'}`}>
                               {srv.servicio || 'Servicio sin nombre'}
                             </span>
                           </p>
 
-                          <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                          <p className={`text-[10px] font-mono mt-0.5 ${esDomicilio ? 'text-slate-400' : 'text-slate-400'}`}>
                             {srv.fecha || 'Fecha N/A'} • {srv.hora || 'Hora N/A'}
                           </p>
                         </div>
@@ -1944,27 +2021,15 @@ const Wallet = () => {
 
                       <div className="flex items-center gap-3">
                         <div className="text-right flex-shrink-0">
-                          <p className={`text-xs font-black ${esPendiente ? 'text-amber-600' : esConfirmado ? 'text-emerald-700' : 'text-blue-700'}`}>
+                          <p className={`text-xs font-black ${esDomicilio ? 'text-white' : esPendiente ? 'text-amber-600' : esConfirmado ? 'text-emerald-700' : 'text-blue-700'}`}>
                             {esPendiente ? '$0 COP' : `+${gananciaServicio.toLocaleString()} COP`}
                           </p>
-                          <p className="text-[10px] text-slate-400 font-medium">Total: ${totalServicio.toLocaleString()}</p>
+                          <p className={`text-[10px] font-medium ${esDomicilio ? 'text-slate-300' : 'text-slate-400'}`}>
+                            Cobrado: ${totalServicio.toLocaleString()}
+                          </p>
                         </div>
 
-                        {esPagado && srv.esDeEstablecimiento && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setServicioAConfirmar(srv);
-                              setModalConfirmarEstadoOpen(true);
-                            }}
-                            title="Hacer clic para confirmar esta cita"
-                            className="w-7 h-7 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center shadow-md shadow-blue-500/25 transition-all cursor-pointer animate-pulse"
-                          >
-                            ✓
-                          </button>
-                        )}
-
-                        {!srv.esDeEstablecimiento && (
+                        {!esDomicilio && (
                           <div className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
                             <button 
                               onClick={() => abrirModalEditar(srv)}

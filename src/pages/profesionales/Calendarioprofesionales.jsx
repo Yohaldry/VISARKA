@@ -54,6 +54,11 @@ export default function Calendarioprofesionales({ barberoId: propId }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modoRango, setModoRango] = useState(false);
   const [citaModal, setCitaModal] = useState(null);
+  const [drawerVisible, setDrawerVisible] = useState(false);
+  const [editandoFechaHora, setEditandoFechaHora] = useState(false);
+  const [fechaCitaEdit, setFechaCitaEdit] = useState('');
+  const [horaCitaEdit, setHoraCitaEdit] = useState('');
+  const [guardandoFechaHora, setGuardandoFechaHora] = useState(false);
   const [editarHoraModal, setEditarHoraModal] = useState(null);
   const [nuevaHoraEdit, setNuevaHoraEdit] = useState('');
   const [editandoServicios, setEditandoServicios] = useState(false);
@@ -101,6 +106,15 @@ export default function Calendarioprofesionales({ barberoId: propId }) {
   }, [propId]);
 
   useEffect(() => { if (barberoId) { fetchData(); fetchServicios(); fetchEstadoDomicilios(); } }, [barberoId]);
+
+  useEffect(() => {
+    if (!citaModal) {
+      setDrawerVisible(false);
+      return;
+    }
+    const raf = requestAnimationFrame(() => setDrawerVisible(true));
+    return () => cancelAnimationFrame(raf);
+  }, [citaModal]);
 
   useEffect(() => {
     const uidActual = barberoId || authUid || '';
@@ -390,12 +404,48 @@ export default function Calendarioprofesionales({ barberoId: propId }) {
     } catch (e) { alert('Error'); }
   };
 
+  const handleGuardarFechaHoraCita = async (e) => {
+    e.preventDefault();
+    if (!citaModal || !fechaCitaEdit || !horaCitaEdit) return alert('Selecciona fecha y hora.');
+    setGuardandoFechaHora(true);
+    try {
+      const fechaAnterior = citaModal.fecha;
+      const horaAnterior = citaModal.hora;
+      await updateDoc(doc(db, 'citas', citaModal.id), { fecha: fechaCitaEdit, hora: horaCitaEdit });
+      if (fechaAnterior && horaAnterior && (fechaAnterior !== fechaCitaEdit || horaAnterior !== horaCitaEdit)) {
+        try {
+          await updateDoc(doc(db, 'calendarioprofesionales', `${barberoId}_${fechaAnterior}_${horaAnterior.replace(/\s+/g, '_')}`), { ocupado: false });
+        } catch (_) {}
+      }
+      try {
+        await setDoc(doc(db, 'calendarioprofesionales', `${barberoId}_${fechaCitaEdit}_${horaCitaEdit.replace(/\s+/g, '_')}`), {
+          barberoId,
+          fecha: fechaCitaEdit,
+          hora: horaCitaEdit,
+          ocupado: true,
+          clienteNombre: citaModal.nombreCliente || citaModal.clienteNombre || 'Cliente',
+          clienteEmail: citaModal.email || '',
+          clienteTelefono: citaModal.telefono || ''
+        }, { merge: true });
+      } catch (_) {}
+      setCitaModal(prev => ({ ...prev, fecha: fechaCitaEdit, hora: horaCitaEdit }));
+      setEditandoFechaHora(false);
+      await fetchData();
+      alert('¡Fecha y hora actualizadas con éxito!');
+    } catch (err) {
+      console.error(err);
+      alert('Error al actualizar fecha y hora.');
+    } finally {
+      setGuardandoFechaHora(false);
+    }
+  };
+
   const handleDeleteCita = async (citaId, fechaCita, horaCita) => {
     if (!window.confirm('¿Estás seguro de eliminar y cancelar esta cita?')) return;
     try {
       await deleteDoc(doc(db, 'citas', citaId));
       try { await updateDoc(doc(db, 'calendarioprofesionales', `${barberoId}_${fechaCita}_${horaCita.replace(/\s+/g, '_')}`), { ocupado: false }); } catch (e) {}
-      setCitaModal(null); setEditandoServicios(false); setSliderVal(0); setConfirmarFinalizar(false); fetchData();
+      cerrarDrawerCita(); fetchData();
     } catch (e) { alert('Error'); }
   };
 
@@ -403,7 +453,7 @@ export default function Calendarioprofesionales({ barberoId: propId }) {
     try {
       await updateDoc(doc(db, 'citas', citaId), { estado: 'finalizada' });
       try { await updateDoc(doc(db, 'calendarioprofesionales', `${barberoId}_${fechaCita}_${horaCita.replace(/\s+/g, '_')}`), { ocupado: false }); } catch (e) {}
-      setCitaModal(null); setEditandoServicios(false); setSliderVal(0); setConfirmarFinalizar(false); fetchData();
+      cerrarDrawerCita(); fetchData();
     } catch (e) { alert('Error al finalizar'); }
   };
 
@@ -456,16 +506,36 @@ export default function Calendarioprofesionales({ barberoId: propId }) {
   });
 
   const hoyStr = fechaLocal();
-  const openCita = (c) => { setCitaModal(c); setEditandoServicios(false); setSliderVal(0); setConfirmarFinalizar(false); setServiciosSeleccionadosCita(c.servicios || []); };
+  const openCita = (c) => {
+    setCitaModal(c);
+    setEditandoServicios(false);
+    setEditandoFechaHora(false);
+    setFechaCitaEdit(c.fecha || '');
+    setHoraCitaEdit(c.hora || '');
+    setSliderVal(0);
+    setConfirmarFinalizar(false);
+    setServiciosSeleccionadosCita(c.servicios || []);
+  };
+
+  const cerrarDrawerCita = () => {
+    setDrawerVisible(false);
+    setTimeout(() => {
+      setCitaModal(null);
+      setEditandoServicios(false);
+      setEditandoFechaHora(false);
+      setSliderVal(0);
+      setConfirmarFinalizar(false);
+    }, 300);
+  };
 
   const totalAceptarModal = serviciosAceptarSel.reduce((acc, s) => acc + (parsePrecioNumero(s.precioNum ?? s.precio ?? s.precioFormatted) ?? 35000), 0);
 
   return (
-    <div className="max-w-3xl mx-auto p-4 sm:p-6 bg-slate-50 text-slate-800 rounded-3xl shadow-2xl border border-slate-200 font-mono">
+    <div style={{ fontFamily: 'Arial, Helvetica, sans-serif' }} className="max-w-3xl mx-auto p-4 sm:p-6 bg-slate-50 text-slate-800 rounded-3xl shadow-2xl border border-slate-200">
       <div className="text-center mb-6"><h2 className="text-xl font-black text-slate-900 tracking-tight uppercase">Panel de Disponibilidad y Citas</h2></div>
 
       <div className="flex bg-slate-100 p-1 rounded-2xl mb-6 gap-1.5 border border-slate-200/80 shadow-inner">
-        {[['en_linea', '🛵', 'Servicios en línea'], ['calendario', '📅', 'Calendario'], ['agendados', '📋', `Citas (${citas.filter(c => (c.estado || '').toLowerCase() !== 'cancelada').length})`]].map(([t, ico, lbl]) => {
+        {[['en_linea', '🛵', 'Servicios en línea'], ['agendados', '📋', `Citas (${citas.filter(c => { const est = (c.estado || 'pendiente').toLowerCase().trim(); return est === 'pendiente'; }).length})`]].map(([t, ico, lbl]) => {
           const isActive = tab === t;
           return (
             <button key={t} onClick={() => setTab(t)} className={`flex-1 py-2 px-2.5 text-[11px] font-extrabold tracking-tight transition-all duration-300 ease-out rounded-xl cursor-pointer flex items-center justify-center gap-1.5 transform active:scale-95 ${isActive ? 'bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-md shadow-slate-900/10 ring-1 ring-slate-900/10' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200/50'}`}>
@@ -997,61 +1067,127 @@ export default function Calendarioprofesionales({ barberoId: propId }) {
         </div>
       )}
 
-      {citaModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white w-full max-w-md rounded-3xl p-6 space-y-4 shadow-2xl border border-emerald-200">
-            <div className="flex justify-between items-center pb-2 border-b border-slate-100"><h3 className="font-black text-xs uppercase tracking-wider text-emerald-700">📋 Detalle Completo de la Cita</h3><button onClick={() => { setCitaModal(null); setEditandoServicios(false); setSliderVal(0); setConfirmarFinalizar(false); }} className="text-slate-400 font-bold">✕</button></div>
-            <div className="space-y-2 text-xs text-slate-700 max-h-[60vh] overflow-y-auto pr-1">
-              <p><strong>Cliente:</strong> {citaModal.nombreCliente || citaModal.clienteNombre || 'No especificado'}</p>
-              <p><strong>Correo:</strong> {citaModal.email || 'No especificado'}</p>
-              <p><strong>Teléfono:</strong> {citaModal.telefono || 'No especificado'}</p>
+  {citaModal && (() => {
+  const estadoCita = (citaModal.estado || '').toLowerCase().trim();
+  const esCitaFinalizada = estadoCita === 'finalizada' || estadoCita === 'finalizado';
+
+  return (
+    <div
+      style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}
+      className={`fixed inset-0 z-50 flex justify-end transition-opacity duration-300 ease-out ${drawerVisible ? 'bg-slate-950/50 backdrop-blur-xs opacity-100' : 'bg-slate-950/0 opacity-0 pointer-events-none'}`}
+    >
+      <div
+        className={`w-screen h-screen bg-white text-slate-800 shadow-2xl flex flex-col justify-between p-5 sm:p-8 overflow-y-auto transition-transform duration-300 ease-out transform ${drawerVisible ? 'translate-x-0' : 'translate-x-full'}`}
+      >
+        <div className="max-w-2xl w-full mx-auto space-y-5 flex-1">
+          <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+            <h3 className="font-black text-sm uppercase tracking-wider text-emerald-700">📋 Detalle Completo de la Cita</h3>
+            <button type="button" onClick={cerrarDrawerCita} className="text-slate-400 hover:text-slate-700 font-bold text-base cursor-pointer px-2 py-1">✕</button>
+          </div>
+          <div className="space-y-2.5 text-xs sm:text-sm text-slate-700">
+            <p><strong>Cliente:</strong> {citaModal.nombreCliente || citaModal.clienteNombre || 'No especificado'}</p>
+            <p><strong>Correo:</strong> {citaModal.email || 'No especificado'}</p>
+            <p><strong>Teléfono:</strong> {citaModal.telefono || 'No especificado'}</p>
+            <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
               <p><strong>Fecha y Hora:</strong> {citaModal.fecha} a las {citaModal.hora}</p>
-              <p><strong>Dirección:</strong> {citaModal.direccion || 'No especificada'}</p>
-              <p><strong>Torre / Apto:</strong> {citaModal.torreApto || 'N/A'}</p>
-              <p><strong>Referencia:</strong> {citaModal.referencia || 'N/A'}</p>
-              <p><strong>Parqueadero Moto:</strong> {citaModal.parqueaderoMoto ? 'Sí' : 'No'}</p>
-              <p><strong>Estado:</strong> <span className="uppercase font-bold">{citaModal.estado || 'pendiente'}</span></p>
-              {!editandoServicios && !confirmarFinalizar ? (
-                <div className="pt-2 border-t border-slate-100">
-                  <div className="flex justify-between items-center mb-1"><p className="font-bold text-slate-900">Servicios asignados:</p>{(citaModal.estado || '').toLowerCase() !== 'finalizada' && <button onClick={() => setEditandoServicios(true)} className="text-[10px] bg-blue-50 text-blue-600 px-2 py-1 rounded-lg font-bold hover:bg-blue-100 cursor-pointer">✏️ Cambiar servicio</button>}</div>
-                  {citaModal.servicios && Array.isArray(citaModal.servicios) ? citaModal.servicios.map((s, i) => <div key={i} className="flex justify-between bg-slate-50 p-1.5 rounded-lg mb-1"><span>{s.nombre}</span><span className="font-bold text-blue-600">{s.precio}</span></div>) : <p>Servicio estándar</p>}
-                  <p className="font-black text-right mt-2 text-sm text-emerald-700">Total: {citaModal.precioTotal || 'N/A'}</p>
-                </div>
-              ) : editandoServicios ? (
-                <div className="pt-2 border-t border-slate-100 space-y-2">
-                  <p className="font-bold text-blue-600">Selecciona los nuevos servicios externos:</p>
-                  {serviciosDisponibles.map(s => {
-                    const sel = serviciosSeleccionadosCita.some(item => item.nombre === s.nombre);
-                    return <div key={s.id} onClick={() => setServiciosSeleccionadosCita(sel ? serviciosSeleccionadosCita.filter(item => item.nombre !== s.nombre) : [...serviciosSeleccionadosCita, { nombre: s.nombre, precio: s.precioFormatted, precioNum: s.precioNum }])} className={`p-2 rounded-xl border cursor-pointer flex justify-between items-center ${sel ? 'bg-blue-50 border-blue-500 font-bold' : 'bg-slate-50 border-slate-200'}`}><span>{s.nombre}</span><span className="text-blue-600">{s.precioFormatted}</span></div>;
-                  })}
-                  <div className="flex gap-2 pt-2"><button onClick={() => setEditandoServicios(false)} className="w-1/2 bg-slate-100 py-2 rounded-xl font-bold">Cancelar</button><button onClick={handleGuardarServicios} className="w-1/2 bg-blue-600 text-white py-2 rounded-xl font-bold">Guardar cambios</button></div>
-                </div>
-              ) : (
-                <div className="pt-3 border-t border-slate-100 text-center space-y-2">
-                  <p className="font-bold text-emerald-700">¿Confirmar que deseas finalizar esta cita?</p>
-                  <div className="flex gap-2"><button onClick={() => { setConfirmarFinalizar(false); setSliderVal(0); }} className="w-1/2 bg-slate-100 py-2 rounded-xl font-bold">No</button><button onClick={() => handleFinalizarCita(citaModal.id, citaModal.fecha, citaModal.hora)} className="w-1/2 bg-emerald-600 text-white py-2 rounded-xl font-bold">Sí, Finalizar</button></div>
-                </div>
+              {!esCitaFinalizada && !editandoFechaHora && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFechaCitaEdit(citaModal.fecha || '');
+                    setHoraCitaEdit(citaModal.hora || '');
+                    setEditandoFechaHora(true);
+                  }}
+                  className="text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded-lg font-bold hover:bg-blue-100 cursor-pointer"
+                >
+                  ✏️ Editar fecha y hora
+                </button>
               )}
             </div>
-            {!editandoServicios && !confirmarFinalizar && (
-              <div className="flex flex-col gap-3 pt-3 border-t border-slate-100">
-                {(citaModal.estado || '').toLowerCase() !== 'finalizada' && (
-                  <div className="space-y-2">
-                    <div className="relative bg-emerald-100 rounded-2xl p-1 overflow-hidden flex items-center border border-emerald-300 shadow-inner">
-                      <span className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-emerald-800 uppercase tracking-widest pointer-events-none z-0">Desliza para finalizar &rarr;</span>
-                      <input type="range" min="0" max="100" value={sliderVal} onChange={e => { const val = Number(e.target.value); setSliderVal(val); if (val > 90) setConfirmarFinalizar(true); }} className="w-full opacity-0 cursor-pointer relative z-20 py-2" />
-                      <div className="absolute left-1 top-1 bottom-1 w-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white text-xs font-bold pointer-events-none transition-all z-10 shadow-md" style={{ transform: `translateX(${sliderVal * 2.2}px)` }}>✓</div>
-                    </div>
-                    <button onClick={() => handleDeleteCita(citaModal.id, citaModal.fecha, citaModal.hora)} className="w-full bg-red-100 hover:bg-red-200 text-red-700 py-2.5 rounded-xl text-xs font-bold cursor-pointer transition-all">🗑️ Eliminar Cita</button>
+
+            {editandoFechaHora && (
+              <form onSubmit={handleGuardarFechaHoraCita} className="bg-blue-50/70 border border-blue-200 p-4 rounded-2xl space-y-3">
+                <p className="font-bold text-xs uppercase text-blue-700">Editar fecha y hora de la cita</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 block mb-1">Nueva fecha</label>
+                    <input
+                      type="date"
+                      value={fechaCitaEdit}
+                      onChange={e => setFechaCitaEdit(e.target.value)}
+                      required
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800"
+                    />
                   </div>
-                )}
-                <button onClick={() => { setCitaModal(null); setSliderVal(0); setConfirmarFinalizar(false); }} className="w-full bg-slate-900 text-white py-2.5 rounded-xl text-xs font-bold cursor-pointer">Cerrar</button>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 block mb-1">Nueva hora</label>
+                    <select
+                      value={horaCitaEdit}
+                      onChange={e => setHoraCitaEdit(e.target.value)}
+                      required
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800"
+                    >
+                      <option value="">Selecciona una hora</option>
+                      {HORAS.map(h => <option key={h} value={h}>{h}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <button type="button" onClick={() => setEditandoFechaHora(false)} className="w-1/2 bg-white border border-slate-200 text-slate-700 py-2 rounded-xl text-xs font-bold cursor-pointer">Cancelar</button>
+                  <button type="submit" disabled={guardandoFechaHora} className="w-1/2 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl text-xs font-bold cursor-pointer">{guardandoFechaHora ? 'Guardando...' : 'Guardar fecha y hora'}</button>
+                </div>
+              </form>
+            )}
+
+            <p><strong>Dirección:</strong> {citaModal.direccion || 'No especificada'}</p>
+            <p><strong>Torre / Apto:</strong> {citaModal.torreApto || 'N/A'}</p>
+            <p><strong>Referencia:</strong> {citaModal.referencia || 'N/A'}</p>
+            <p><strong>Parqueadero Moto:</strong> {citaModal.parqueaderoMoto ? 'Sí' : 'No'}</p>
+            <p><strong>Estado:</strong> <span className="uppercase font-bold">{citaModal.estado || 'pendiente'}</span></p>
+            {!editandoServicios && !confirmarFinalizar ? (
+              <div className="pt-2 border-t border-slate-100">
+                <div className="flex justify-between items-center mb-1"><p className="font-bold text-slate-900">Servicios asignados:</p>{!esCitaFinalizada && <button type="button" onClick={() => setEditandoServicios(true)} className="text-[10px] bg-blue-50 text-blue-600 px-2 py-1 rounded-lg font-bold hover:bg-blue-100 cursor-pointer">✏️ Cambiar servicio</button>}</div>
+                {citaModal.servicios && Array.isArray(citaModal.servicios) ? citaModal.servicios.map((s, i) => <div key={i} className="flex justify-between bg-slate-50 p-1.5 rounded-lg mb-1"><span>{s.nombre}</span><span className="font-bold text-blue-600">{s.precio}</span></div>) : <p>Servicio estándar</p>}
+                <p className="font-black text-right mt-2 text-sm text-emerald-700">Total: {citaModal.precioTotal || 'N/A'}</p>
+              </div>
+            ) : editandoServicios ? (
+              <div className="pt-2 border-t border-slate-100 space-y-2">
+                <p className="font-bold text-blue-600">Selecciona los nuevos servicios externos:</p>
+                {serviciosDisponibles.map(s => {
+                  const sel = serviciosSeleccionadosCita.some(item => item.nombre === s.nombre);
+                  return <div key={s.id} onClick={() => setServiciosSeleccionadosCita(sel ? serviciosSeleccionadosCita.filter(item => item.nombre !== s.nombre) : [...serviciosSeleccionadosCita, { nombre: s.nombre, precio: s.precioFormatted, precioNum: s.precioNum }])} className={`p-2 rounded-xl border cursor-pointer flex justify-between items-center ${sel ? 'bg-blue-50 border-blue-500 font-bold' : 'bg-slate-50 border-slate-200'}`}><span>{s.nombre}</span><span className="text-blue-600">{s.precioFormatted}</span></div>;
+                })}
+                <div className="flex gap-2 pt-2"><button type="button" onClick={() => setEditandoServicios(false)} className="w-1/2 bg-slate-100 py-2 rounded-xl font-bold">Cancelar</button><button type="button" onClick={handleGuardarServicios} className="w-1/2 bg-blue-600 text-white py-2 rounded-xl font-bold">Guardar cambios</button></div>
+              </div>
+            ) : (
+              <div className="pt-3 border-t border-slate-100 text-center space-y-2">
+                <p className="font-bold text-emerald-700">¿Confirmar que deseas finalizar esta cita?</p>
+                <div className="flex gap-2"><button type="button" onClick={() => { setConfirmarFinalizar(false); setSliderVal(0); }} className="w-1/2 bg-slate-100 py-2 rounded-xl font-bold">No</button><button type="button" onClick={() => handleFinalizarCita(citaModal.id, citaModal.fecha, citaModal.hora)} className="w-1/2 bg-emerald-600 text-white py-2 rounded-xl font-bold">Sí, Finalizar</button></div>
               </div>
             )}
           </div>
+          {!editandoServicios && !confirmarFinalizar && (
+            <div className="flex flex-col gap-3 pt-3 border-t border-slate-100">
+              <div className="space-y-2">
+                {!esCitaFinalizada && (
+                  <div className="relative bg-emerald-100 rounded-2xl p-1 overflow-hidden flex items-center border border-emerald-300 shadow-inner">
+                    <span className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-emerald-800 uppercase tracking-widest pointer-events-none z-0">Desliza para finalizar &rarr;</span>
+                    <input type="range" min="0" max="100" value={sliderVal} onChange={e => { const val = Number(e.target.value); setSliderVal(val); if (val > 90) setConfirmarFinalizar(true); }} className="w-full opacity-0 cursor-pointer relative z-20 py-2" />
+                    <div className="absolute left-1 top-1 bottom-1 w-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white text-xs font-bold pointer-events-none transition-all z-10 shadow-md" style={{ transform: `translateX(${sliderVal * 2.2}px)` }}>✓</div>
+                  </div>
+                )}
+                {!esCitaFinalizada && (
+                  <button type="button" onClick={() => handleDeleteCita(citaModal.id, citaModal.fecha, citaModal.hora)} className="w-full bg-red-100 hover:bg-red-200 text-red-700 py-2.5 rounded-xl text-xs font-bold cursor-pointer transition-all">🗑️ Eliminar Cita</button>
+                )}
+              </div>
+              <button type="button" onClick={cerrarDrawerCita} className="w-full bg-slate-900 text-white py-2.5 rounded-xl text-xs font-bold cursor-pointer">Cerrar</button>
+            </div>
+          )}
         </div>
-      )}
-
+      </div>
+    </div>
+  );
+})()}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <form onSubmit={handleSaveModal} className="bg-white w-full max-w-md rounded-3xl p-6 space-y-4 shadow-2xl border border-slate-100">
