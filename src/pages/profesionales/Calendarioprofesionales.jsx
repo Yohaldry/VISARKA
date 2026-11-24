@@ -535,7 +535,7 @@ export default function Calendarioprofesionales({ barberoId: propId }) {
       <div className="text-center mb-6"><h2 className="text-xl font-black text-slate-900 tracking-tight uppercase">Panel de Disponibilidad y Citas</h2></div>
 
       <div className="flex bg-slate-100 p-1 rounded-2xl mb-6 gap-1.5 border border-slate-200/80 shadow-inner">
-        {[['en_linea', '🛵', 'Servicios en línea'], ['agendados', '📋', `Citas (${citas.filter(c => { const est = (c.estado || 'pendiente').toLowerCase().trim(); return est === 'pendiente'; }).length})`]].map(([t, ico, lbl]) => {
+        {[['en_linea', '🛵', 'Servicios en línea'], ['calendario', '📅', 'Calendario'], ['agendados', '📋', `Citas (${citas.filter(c => { const est = (c.estado || 'pendiente').toLowerCase().trim(); return est === 'pendiente'; }).length})`]].map(([t, ico, lbl]) => {
           const isActive = tab === t;
           return (
             <button key={t} onClick={() => setTab(t)} className={`flex-1 py-2 px-2.5 text-[11px] font-extrabold tracking-tight transition-all duration-300 ease-out rounded-xl cursor-pointer flex items-center justify-center gap-1.5 transform active:scale-95 ${isActive ? 'bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-md shadow-slate-900/10 ring-1 ring-slate-900/10' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200/50'}`}>
